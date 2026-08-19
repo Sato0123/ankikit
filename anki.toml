@@ -1,0 +1,25 @@
+# Anki 環境に依存する設定。ここを直せば済むようにしてある。
+#
+# ノートタイプ名とフィールド名は Anki の UI 言語で変わる。既定値は日本語 UI 用。
+# 実際のコレクションと合っているかは `uv run ankikit doctor` で確認できる。
+#
+# 英語 UI なら:
+#   [note_types.basic]
+#   model = "Basic"
+#   front = "Front"
+#   back  = "Back"
+#
+#   [note_types.cloze]
+#   model = "Cloze"
+#   front = "Text"
+#   back  = "Back Extra"
+
+[note_types.basic]
+model = "基本"
+front = "表面"
+back = "裏面"
+
+[note_types.cloze]
+model = "穴埋め問題"
+front = "Text"
+back = "裏面追記"

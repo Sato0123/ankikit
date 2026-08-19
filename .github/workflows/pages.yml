@@ -1,0 +1,40 @@
+# docs/handbook.html を GitHub Pages に出す。
+# handbook.html は doctype を持たないフラグメントなので、build_pages.py で
+# 完全な HTML に包んでから配信する（そのまま配信すると quirks モードになる）。
+name: Deploy handbook
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docs/handbook.html"
+      - "docs/build_pages.py"
+      - ".github/workflows/pages.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 走行中のデプロイは中断しない（同時実行だけ抑える）
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: python3 docs/build_pages.py _site
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4

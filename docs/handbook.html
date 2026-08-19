@@ -1,0 +1,1134 @@
+<!--
+  ankikit ハンドブック
+  ─────────────────────────────────────────────
+  このファイル 1 枚で完結する（ビルド不要 / 外部 JS 不要）。
+  ブラウザで直接開いてもいいし、Artifact として公開してもそのまま動く。
+
+  手入れの仕方:
+    - 本文は下の <section> をそのまま編集する（HTML がそのまま画面の順序）
+    - 節を足す = <section id="..." data-title="目次名"> を足すだけ。目次は自動生成される
+    - コマンド行 (.cmd) にはコピーボタンが自動で付く
+    - 色・文字は :root のトークンだけ直せば全体に効く
+-->
+<title>ankikit ハンドブック</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Old+Mincho:wght@400;600;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ── tokens ───────────────────────────────────────── */
+:root{
+  --ground:#F3F5F1;
+  --surface:#FFFFFF;
+  --surface-2:#E9EDE6;
+  --ink:#171C19;
+  --ink-2:#4C5550;
+  --ink-3:#7B857E;
+  --line:#D6DCD3;
+  --line-2:#BAC3B8;
+  --accent:#0E6B5B;
+  --accent-ink:#0B564A;
+  --accent-soft:#DCEBE5;
+  --on-accent:#FFFFFF;
+  --on-accent-fill:rgba(255,255,255,.18);
+  --pending:#95561F;
+  --pending-soft:#F3E6D6;
+  --code-bg:#ECEFE9;
+  --shadow:0 1px 2px rgba(23,28,25,.05), 0 8px 24px -18px rgba(23,28,25,.35);
+
+  --f-display:"Zen Old Mincho", "Hiragino Mincho ProN", serif;
+  --f-body:"Zen Kaku Gothic New", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  --f-mono:"JetBrains Mono", "SFMono-Regular", Menlo, "Zen Kaku Gothic New", monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --ground:#10130F;
+    --surface:#171B16;
+    --surface-2:#1E241C;
+    --ink:#E6EBE3;
+    --ink-2:#A5AFA6;
+    --ink-3:#7E887F;
+    --line:#2A3128;
+    --line-2:#3B443A;
+    --accent:#5CC0A6;
+    --accent-ink:#7FD3BC;
+    --accent-soft:#14312A;
+    --on-accent:#0A1310;
+    --on-accent-fill:rgba(0,0,0,.16);
+    --pending:#D9A26A;
+    --pending-soft:#2E241A;
+    --code-bg:#1B211A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#10130F;
+  --surface:#171B16;
+  --surface-2:#1E241C;
+  --ink:#E6EBE3;
+  --ink-2:#A5AFA6;
+  --ink-3:#7E887F;
+  --line:#2A3128;
+  --line-2:#3B443A;
+  --accent:#5CC0A6;
+  --accent-ink:#7FD3BC;
+  --accent-soft:#14312A;
+  --on-accent:#0A1310;
+  --on-accent-fill:rgba(0,0,0,.16);
+  --pending:#D9A26A;
+  --pending-soft:#2E241A;
+  --code-bg:#1B211A;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -18px rgba(0,0,0,.8);
+}
+
+/* ── base ─────────────────────────────────────────── */
+*{box-sizing:border-box}
+body{
+  margin:0;
+  background:var(--ground);
+  color:var(--ink);
+  font-family:var(--f-body);
+  font-size:16px;
+  line-height:1.9;
+  -webkit-font-smoothing:antialiased;
+}
+p,ul,ol,table,pre,figure{margin:0}
+a{color:var(--accent-ink);text-underline-offset:.22em;text-decoration-thickness:1px}
+a:hover{text-decoration-thickness:2px}
+:focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:2px}
+code,.cmd,.tree{font-variant-ligatures:none;font-feature-settings:"liga" 0,"calt" 0}
+code{font-family:var(--f-mono);font-size:.87em}
+b,strong{font-weight:700}
+
+/* ── shell ────────────────────────────────────────── */
+.wrap{
+  max-width:1200px;margin:0 auto;padding:0 24px;
+  display:grid;grid-template-columns:214px minmax(0,1fr);gap:56px;
+  align-items:start;
+}
+.side{position:sticky;top:0;padding:44px 0 40px;max-height:100vh;overflow-y:auto}
+.side .mark{
+  font-family:var(--f-mono);font-size:.72rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:18px;
+}
+.toc{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px;font-size:.87rem;line-height:1.5}
+.toc a{
+  display:block;padding:6px 10px 6px 12px;color:var(--ink-2);text-decoration:none;
+  border-left:2px solid var(--line);border-radius:0 3px 3px 0;
+}
+.toc a:hover{color:var(--ink);background:var(--surface-2)}
+.toc a[aria-current="true"]{color:var(--accent-ink);border-left-color:var(--accent);background:var(--accent-soft);font-weight:700}
+.toc-m{display:none}
+
+main{padding:44px 0 120px;min-width:0}
+section{padding:0 0 12px;scroll-margin-top:28px}
+section + section{margin-top:64px;padding-top:52px;border-top:1px solid var(--line)}
+
+/* ── type ─────────────────────────────────────────── */
+h1{
+  font-family:var(--f-display);font-weight:700;
+  font-size:clamp(2.1rem,5.2vw,3.1rem);line-height:1.32;letter-spacing:.01em;
+  margin:0 0 18px;text-wrap:balance;
+}
+h2{
+  font-family:var(--f-display);font-weight:600;
+  font-size:1.62rem;line-height:1.5;margin:0 0 22px;text-wrap:balance;
+}
+h3{font-size:1.04rem;font-weight:700;margin:34px 0 12px;letter-spacing:.01em}
+h4{font-size:.94rem;font-weight:700;margin:22px 0 8px;color:var(--ink-2)}
+.eyebrow{
+  font-family:var(--f-mono);font-size:.7rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:10px;
+}
+.prose{max-width:66ch}
+.prose p + p{margin-top:14px}
+.lede{font-size:1.06rem;color:var(--ink-2);max-width:60ch}
+.stack{display:flex;flex-direction:column;gap:16px}
+ul.plain,ol.plain{padding-left:1.3em;display:flex;flex-direction:column;gap:6px;max-width:66ch}
+ul.plain li::marker{color:var(--ink-3)}
+
+/* ── hero ─────────────────────────────────────────── */
+.hero{padding-bottom:8px}
+.tenets{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:6px;overflow:hidden;margin-top:32px}
+.tenet{background:var(--surface);padding:18px 20px 20px}
+.tenet .k{font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;color:var(--accent-ink);display:block;margin-bottom:6px}
+.tenet p{font-size:.9rem;line-height:1.75;color:var(--ink-2)}
+.tenet b{color:var(--ink)}
+
+/* ── flow diagram ─────────────────────────────────── */
+.flow{margin-top:8px;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
+.band{padding:20px 22px 24px}
+.band--branch{background:var(--surface)}
+.band--main{background:var(--accent-soft)}
+.band-label{
+  font-family:var(--f-mono);font-size:.7rem;letter-spacing:.12em;text-transform:uppercase;
+  display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;margin-bottom:16px;
+}
+.band--branch .band-label{color:var(--pending)}
+.band--main .band-label{color:var(--accent-ink)}
+.band-label span{font-family:var(--f-body);letter-spacing:0;text-transform:none;font-size:.8rem;color:var(--ink-3)}
+.track{list-style:none;margin:0;padding:0;display:grid;gap:10px}
+.track li{display:grid;grid-template-columns:26px minmax(0,1fr);gap:12px;align-items:baseline}
+.track .n{
+  font-family:var(--f-mono);font-size:.74rem;color:var(--ink-3);
+  border:1px solid var(--line-2);border-radius:50%;width:24px;height:24px;
+  display:grid;place-items:center;line-height:1;align-self:start;margin-top:2px;
+}
+.band--main .track .n{border-color:var(--accent);color:var(--accent-ink)}
+.track b{font-size:.95rem}
+.track p{font-size:.85rem;color:var(--ink-2);line-height:1.65}
+.gate{
+  background:var(--accent);color:var(--on-accent);padding:16px 22px;
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px 18px;
+}
+.gate-title{font-weight:700;font-size:1rem;letter-spacing:.02em}
+.gate-sub{font-size:.83rem;opacity:.82}
+.gate code{
+  margin-left:auto;background:var(--on-accent-fill);padding:4px 10px;border-radius:4px;
+  font-size:.8rem;white-space:nowrap;
+}
+
+/* ── steps ────────────────────────────────────────── */
+.steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.steps > li{
+  display:grid;grid-template-columns:34px minmax(0,1fr);gap:20px;
+  padding:24px 0;border-top:1px solid var(--line);
+}
+.steps > li:first-child{border-top:none;padding-top:6px}
+.step-n{
+  font-family:var(--f-mono);font-size:.8rem;font-weight:500;color:var(--accent-ink);
+  border:1px solid var(--accent);border-radius:50%;width:32px;height:32px;
+  display:grid;place-items:center;line-height:1;
+}
+.step-b{min-width:0;display:flex;flex-direction:column;gap:12px}
+.step-b > h3{margin:0;font-size:1.06rem}
+.step-b p{max-width:64ch;font-size:.94rem}
+
+/* ── callouts ─────────────────────────────────────── */
+.note{
+  border-left:3px solid var(--line-2);padding:12px 0 12px 16px;
+  font-size:.9rem;line-height:1.75;color:var(--ink-2);max-width:66ch;
+}
+.note b{color:var(--ink)}
+.note--gate{border-left-color:var(--accent);background:linear-gradient(90deg,var(--accent-soft),transparent 85%);padding-right:14px;border-radius:0 4px 4px 0}
+.note--warn{border-left-color:var(--pending);background:linear-gradient(90deg,var(--pending-soft),transparent 85%);padding-right:14px;border-radius:0 4px 4px 0}
+.quote{
+  font-family:var(--f-display);font-size:1.02rem;line-height:1.8;color:var(--ink);
+  border-left:2px solid var(--accent);padding:2px 0 2px 16px;max-width:60ch;
+}
+.quote + .quote{margin-top:10px}
+
+/* ── code ─────────────────────────────────────────── */
+.cmd-wrap{position:relative}
+.cmd{
+  background:var(--code-bg);border:1px solid var(--line);border-radius:6px;
+  padding:12px 84px 12px 14px;overflow-x:auto;
+  font-family:var(--f-mono);font-size:.83rem;line-height:1.85;white-space:pre;
+  color:var(--ink);
+}
+.cmd .c{color:var(--ink-3)}
+.copy{
+  position:absolute;top:8px;right:8px;
+  font-family:var(--f-mono);font-size:.68rem;letter-spacing:.06em;
+  background:var(--surface);color:var(--ink-2);border:1px solid var(--line-2);
+  border-radius:4px;padding:3px 9px;cursor:pointer;
+}
+.copy:hover{color:var(--accent-ink);border-color:var(--accent)}
+.copy[data-done="1"]{color:var(--accent-ink);border-color:var(--accent)}
+
+/* ── tables ───────────────────────────────────────── */
+.tw{overflow-x:auto;border:1px solid var(--line);border-radius:6px;background:var(--surface)}
+table{border-collapse:collapse;width:100%;font-size:.88rem;line-height:1.7}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--line);vertical-align:top}
+thead th{
+  font-family:var(--f-mono);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);background:var(--surface-2);font-weight:500;white-space:nowrap;
+}
+tbody tr:last-child td{border-bottom:none}
+td code{background:var(--code-bg);padding:1px 5px;border-radius:3px;white-space:nowrap}
+td.k{white-space:nowrap;font-weight:500}
+
+/* ── two-col judgement ────────────────────────────── */
+.judge{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:14px}
+.judge > div{border:1px solid var(--line);border-radius:6px;padding:16px 18px;background:var(--surface)}
+.judge h4{margin:0 0 10px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase}
+.judge--in{border-top:2px solid var(--accent)}
+.judge--in h4{color:var(--accent-ink)}
+.judge--out{border-top:2px solid var(--pending)}
+.judge--out h4{color:var(--pending)}
+.judge ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px;font-size:.88rem;line-height:1.65}
+.judge li{padding-left:16px;position:relative;color:var(--ink-2)}
+.judge li::before{position:absolute;left:0;top:0;font-family:var(--f-mono);font-size:.8em}
+.judge--in li::before{content:"+";color:var(--accent)}
+.judge--out li::before{content:"−";color:var(--pending)}
+
+/* ── never-do list ────────────────────────────────── */
+.never{
+  border:1px dashed var(--line-2);border-radius:6px;padding:16px 20px;background:var(--surface);
+}
+.never h4{margin:0 0 10px;font-family:var(--f-mono);font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;color:var(--pending)}
+.never ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:6px 24px;font-size:.87rem;line-height:1.6}
+.never li{padding-left:18px;position:relative;color:var(--ink-2)}
+.never li::before{content:"×";position:absolute;left:2px;color:var(--pending);font-family:var(--f-mono)}
+
+/* ── details ──────────────────────────────────────── */
+details{border:1px solid var(--line);border-radius:6px;background:var(--surface);overflow:hidden}
+details + details{margin-top:8px}
+summary{
+  padding:12px 16px;cursor:pointer;font-weight:500;font-size:.92rem;
+  list-style:none;display:flex;align-items:center;gap:10px;
+}
+summary::-webkit-details-marker{display:none}
+summary::before{
+  content:"+";font-family:var(--f-mono);color:var(--accent-ink);font-size:.9rem;width:12px;
+}
+details[open] summary::before{content:"−"}
+details[open] summary{border-bottom:1px solid var(--line)}
+.d-body{padding:16px;display:flex;flex-direction:column;gap:12px;font-size:.9rem}
+.d-body ul{padding-left:1.2em;display:flex;flex-direction:column;gap:5px;margin:0}
+
+/* ── misc ─────────────────────────────────────────── */
+.tree{
+  background:var(--code-bg);border:1px solid var(--line);border-radius:6px;padding:14px 16px;
+  font-family:var(--f-mono);font-size:.8rem;line-height:1.9;overflow-x:auto;white-space:pre;color:var(--ink-2);
+}
+.tree b{color:var(--ink);font-weight:500}
+.foot{
+  margin-top:72px;padding-top:24px;border-top:1px solid var(--line);
+  font-size:.82rem;color:var(--ink-3);display:flex;flex-wrap:wrap;gap:6px 20px;
+}
+.foot code{background:var(--code-bg);padding:1px 5px;border-radius:3px}
+
+@media (max-width:960px){
+  .wrap{grid-template-columns:1fr;gap:0;padding:0 20px}
+  .side{position:static;max-height:none;padding:28px 0 0}
+  .toc{display:none}
+  .toc-m{display:block}
+  .toc-m summary{padding:10px 14px}
+  .toc-m ul{list-style:none;margin:0;padding:10px 14px;display:flex;flex-wrap:wrap;gap:4px 18px;font-size:.86rem}
+  .toc-m a{color:var(--ink-2);text-decoration:none}
+  main{padding-top:28px}
+  .gate code{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}
+</style>
+
+<div class="wrap">
+  <nav class="side" aria-label="目次">
+    <span class="mark">ankikit</span>
+    <ul class="toc" id="toc"></ul>
+    <details class="toc-m"><summary>目次</summary><ul id="tocm"></ul></details>
+  </nav>
+
+  <main>
+
+    <!-- ══ 概要 ══ -->
+    <section id="overview" data-title="概要" class="hero">
+      <span class="eyebrow">handbook</span>
+      <h1>その日の学習を掘り出して、<br>Anki カードにするまで</h1>
+      <p class="lede">対話で振り返り、記憶に残す価値のある部分だけをカードにする。カードは Markdown で書き、<b>main にマージされたものだけ</b>が Anki に入る。</p>
+
+      <div class="tenets">
+        <div class="tenet">
+          <span class="k">01 / SOURCE</span>
+          <p>カードの正は <b><code>decks/</code> 配下の Markdown</b>。Anki へは片方向に流し込むだけで、Anki 側の編集は戻ってこない。直したいときは Markdown を直して push し直す。</p>
+        </div>
+        <div class="tenet">
+          <span class="k">02 / APPROVAL</span>
+          <p>承認の境界は <b>git のマージ</b>。ブランチ上で書いただけのカードは Anki に入らない。<b>マージが承認そのもの</b>。</p>
+        </div>
+        <div class="tenet">
+          <span class="k">03 / PUSH</span>
+          <p><code>ankikit push</code> が読むのは作業ツリーではなく <b>main の内容</b>。「追加 0」と出たら、まだマージされていないということ。</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ══ 全体の流れ ══ -->
+    <section id="flow" data-title="全体の流れ">
+      <h2>全体の流れ</h2>
+      <p class="prose">デッキを立ち上げるのは 1 デッキにつき 1 回（<code>/anki-initialize</code>）。あとは学習した日の終わりに毎回 <code>/anki-grill</code> を回す。下は grill の 6 ステップで、<b>横断する帯が承認ライン</b>。</p>
+
+      <div class="flow" style="margin-top:24px">
+        <div class="band band--branch">
+          <p class="band-label">branch <span>— ここまでは承認なしで進めてよい。Anki には 1 枚も入らない</span></p>
+          <ol class="track">
+            <li><span class="n">1</span><div><b>デッキの特定</b><p>今日はどのデッキの話か決める。決まらないと「入れる基準」が決まらず質問が散る。該当デッキが無ければ <code>/anki-initialize</code> へ。</p></div></li>
+            <li><span class="n">2</span><div><b>振り返り（掘る）</b><p>そのデッキの方針に沿って問い詰める。一度に一問。5〜15 往復。</p></div></li>
+            <li><span class="n">3</span><div><b>カード候補</b><p>5〜10 枚を提案する。ユーザーが口にした表現をそのまま使う。</p></div></li>
+            <li><span class="n">4</span><div><b>staging ブランチで作成・コミット</b><p><code>ankikit stage</code> → <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> に書く → <code>lint</code> → コミット。</p></div></li>
+          </ol>
+        </div>
+
+        <div class="gate">
+          <span class="gate-title">承認 ＝ main へマージ</span>
+          <span class="gate-sub">この線を越えたものだけが Anki に入る</span>
+          <code>uv run ankikit approve &lt;slug&gt;</code>
+        </div>
+
+        <div class="band band--main">
+          <p class="band-label">main <span>— push が読むのはここだけ</span></p>
+          <ol class="track">
+            <li><span class="n">5</span><div><b>push</b><p><code>uv run ankikit push --deck &lt;slug&gt;</code>。「追加 N / 更新 M」が結果。</p></div></li>
+            <li><span class="n">6</span><div><b>Anki → AnkiWeb → スマホ</b><p>PC 版 Anki に入り、同期でスマホに届く。</p></div></li>
+          </ol>
+        </div>
+      </div>
+
+      <p class="note note--warn" style="margin-top:20px">手で書きたいときは <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> に直接足して、同じくマージしてから <code>uv run ankikit push</code>。<b>経路が違っても承認ラインは同じ。</b></p>
+    </section>
+
+    <!-- ══ セットアップ ══ -->
+    <section id="setup" data-title="セットアップ">
+      <h2>セットアップ</h2>
+      <p class="prose"><b>リポジトリは 2 つに分かれている。</b> 道具は何度でも配れるが、カードはあなただけのもの。git の履歴は後から消せないので、混ぜない。</p>
+
+      <div class="tw" style="margin-top:18px"><table>
+        <thead><tr><th></th><th>public <code>ankikit</code></th><th>private <code>anki-decks</code></th></tr></thead>
+        <tbody>
+          <tr><td class="k">役割</td><td>道具そのもの</td><td>あなたの記憶</td></tr>
+          <tr><td class="k">中身</td><td><code>src/ankikit/</code> <code>tests/</code> <code>docs/</code> <code>decks/README.md</code>（記法の仕様）</td><td><code>decks/&lt;slug&gt;/</code>（カード本体） <code>anki.toml</code> <code>.claude/skills/</code></td></tr>
+          <tr><td class="k">触る頻度</td><td>たまに（道具を直すとき）</td><td>毎日（振り返り）</td></tr>
+        </tbody>
+      </table></div>
+
+      <p class="note" style="margin-top:16px">道具は <code>uv add</code> で入れる。<b>カード側で <code>uv run ankikit ...</code> と打つ形は変わらない。</b> <code>config.py</code> の <code>find_repo_root()</code> がカレントから上へ <code>anki.toml</code> / <code>decks/</code> を探すので、カード側のリポジトリに居れば環境変数は要らない。</p>
+
+      <ol class="steps" style="margin-top:30px">
+        <li><span class="step-n">1</span><div class="step-b">
+          <h3>PC 版 Anki に AnkiConnect を入れる</h3>
+          <p>アドオンコード <code>2055492159</code>。<a href="https://ankiweb.net/shared/info/2055492159">AnkiWeb のアドオンページ</a>から。</p>
+        </div></li>
+        <li><span class="step-n">2</span><div class="step-b">
+          <h3>カード用のリポジトリを作る</h3>
+          <div class="cmd">mkdir ~/anki-decks &amp;&amp; cd ~/anki-decks
+git init
+uv init --bare
+uv add "ankikit @ git+ssh://git@github.com/Sato0123/ankikit"</div>
+          <p class="note">道具を直しながら使うなら <code>[tool.uv.sources]</code> に <code>ankikit = { path = "../Anki", editable = true }</code> と書く。直したそばから反映される。</p>
+        </div></li>
+        <li><span class="step-n">3</span><div class="step-b">
+          <h3>スキルを配置する</h3>
+          <div class="cmd">uv run ankikit install</div>
+          <p><code>/anki-grill</code> と <code>/anki-initialize</code> が <code>.claude/skills/</code> に入る。スキルの正はパッケージの中（<code>src/ankikit/skills/</code>）なので、<b>道具を更新したら <code>install</code> を叩き直すと最新になる</b>。</p>
+          <div class="tw"><table>
+            <thead><tr><th>コマンド</th><th>意味</th></tr></thead>
+            <tbody>
+              <tr><td class="k"><code>ankikit install</code></td><td>配置する。既にあって内容が同じなら何もしない</td></tr>
+              <tr><td class="k"><code>ankikit install --list</code></td><td>何が入るかだけ見る</td></tr>
+              <tr><td class="k"><code>ankikit install --force</code></td><td>手で直したスキルも上書きする</td></tr>
+            </tbody>
+          </table></div>
+          <p class="note note--warn">手で直したスキルは <code>--force</code> が無ければ<b>上書きされない</b>。意図せず自分の変更が消えないようにしてある。</p>
+        </div></li>
+        <li><span class="step-n">4</span><div class="step-b">
+          <h3>接続とノートタイプ名を確認する</h3>
+          <div class="cmd">uv run ankikit doctor</div>
+          <p class="note">ノートタイプ名は Anki の UI 言語や導入経緯で変わる。NG が出たら <code>anki.toml</code> の <code>[note_types]</code> を直す。この環境の実測値は basic=<code>基本</code>［表面 / 裏面］、cloze=<code>穴埋め問題</code>［Text / 裏面追記］。</p>
+        </div></li>
+        <li><span class="step-n">5</span><div class="step-b">
+          <h3>最初のデッキを立ち上げる</h3>
+          <p><code>/anki-initialize</code> を呼ぶ。方針と最初の 10〜20 枚までまとめて作る。</p>
+        </div></li>
+      </ol>
+
+      <p class="note note--warn" style="margin-top:22px"><b>場所を間違えると黙って 0 件にはならない。</b> <code>decks/</code> が見つからないところで叩くと、どこを見たかを言ってエラーで止まる。</p>
+    </section>
+
+    <!-- ══ grill ══ -->
+    <section id="grill" data-title="/anki-grill 日々の振り返り">
+      <span class="eyebrow">skill</span>
+      <h2>/anki-grill — 学習した日の終わりに毎回</h2>
+      <p class="lede">ユーザーはスマホで 1 枚ずつ登録したくないし、観点を自分で列挙するのも面倒だと思っている。<b>質問はこちらが出す。</b></p>
+
+      <h3 style="margin-top:30px">0. 下ごしらえ（黙ってやる。要約して見せない）</h3>
+      <ul class="plain">
+        <li><code>decks/README.md</code> — 記法とコマンド</li>
+        <li><code>decks/*/README.md</code> — 各デッキの目的・入れる基準・入れない基準・<code>## 前提</code></li>
+        <li>直近数日の <code>decks/*/cards/*.md</code> — 重複回避と「昨日のあれどうなった？」用</li>
+        <li><code>uv run ankikit decks</code> — 未マージのカードが残っていたら、先に片付けるか聞く</li>
+      </ul>
+
+      <ol class="steps" style="margin-top:34px">
+        <li><span class="step-n">1</span><div class="step-b">
+          <h3>デッキの特定 — 振り返りより先</h3>
+          <p>既にデッキがあるなら、slug と目的を 1 行ずつ並べて選ばせる。</p>
+          <div class="quote">今日はどれ？<br>・<code>english-vocab</code> — 会議で出た語彙<br>・<code>sre</code> — 障害対応で詰まったこと</div>
+          <p class="note">どのデッキにも当てはまらなければ新しいデッキを提案し、<b>作成は <code>/anki-initialize</code> に任せる</b>。ここで <code>ankikit new</code> を叩いて README を片手間に埋めない（後の全セッションの判断基準になる場所を雑に作らない）。</p>
+          <p class="note"><b>1 セッション 1 デッキが基本。</b> 話が複数デッキに散ったら、デッキごとにブランチを分けて 4〜6 を繰り返す。</p>
+        </div></li>
+
+        <li><span class="step-n">2</span><div class="step-b">
+          <h3>振り返り（掘る）</h3>
+          <p>デッキの「入れる基準」を頭に置いて掘り始める。最初の一言は短く。</p>
+          <div class="quote">今日 <code>sre</code> まわりで何をやった？ 一番時間を使ったところから。</div>
+
+          <h4>鉄則</h4>
+          <ul class="plain">
+            <li><b>一度に一問だけ。</b> まとめて 3 つ聞かない。</li>
+            <li><b>答えを要約して返さない。</b> 相槌もいらない。次の質問に進む。</li>
+            <li><b>抽象語は許さない。</b>「うまくいった」→ 何が、どうなって、前と何が違う？／「理解した」→ じゃあ説明して。3 行で。／「難しかった」→ どこで手が止まった？ 何分？ 最終的に何を見て解決した？</li>
+            <li><b>「知ってる」には説明させる。</b> 説明が詰まったら、そこが最高のカードになる。</li>
+            <li><b>詰まった / 間違えた / 驚いた を最優先。</b> スムーズにできたことは記憶する価値が低い。</li>
+            <li>手を動かしていない知識は、<b>使う場面</b>を聞いてから判断する。答えられないならカードにしない。</li>
+            <li>5〜15 往復。</li>
+          </ul>
+
+          <h4>切り口のストック（一本道が尽きたら）</h4>
+          <div class="tw"><table>
+            <thead><tr><th>切り口</th><th>問い</th></tr></thead>
+            <tbody>
+              <tr><td class="k">失敗</td><td>今日エラーになった / 想定と違った瞬間は？ 原因は結局なんだった？</td></tr>
+              <tr><td class="k">判断</td><td>選ばなかった選択肢は？ なぜそっちを捨てた？</td></tr>
+              <tr><td class="k">境界</td><td>それが<b>使えない</b>のはどういうとき？ 例外は？</td></tr>
+              <tr><td class="k">区別</td><td>似てるけど違うものは？ 何が違う？</td></tr>
+              <tr><td class="k">再現</td><td>明日同じことをゼロからやれる？ どこで詰まりそう？</td></tr>
+              <tr><td class="k">由来</td><td>なぜそういう仕様 / 語法になっている？</td></tr>
+              <tr><td class="k">昨日</td><td>前回のカードで、今日実際に出てきたものは？</td></tr>
+            </tbody>
+          </table></div>
+
+          <h4>やめる合図</h4>
+          <ul class="plain">
+            <li>ユーザーが「もういい」「それくらい」と言った</li>
+            <li>3 往復続けて新しい事実が出てこない</li>
+            <li>カード候補が 10 枚を超えた（1 セッション 5〜10 枚が適量）</li>
+          </ul>
+        </div></li>
+
+        <li><span class="step-n">3</span><div class="step-b">
+          <h3>カード候補を出す</h3>
+          <p>会話全体から拾う。<b>ユーザーが口にした表現をできるだけそのまま使う</b>（自分の言葉のほうが思い出せる）。</p>
+          <div class="judge">
+            <div class="judge--in"><h4>入れる</h4><ul>
+              <li>今日詰まった・間違えた事実</li>
+              <li>説明を求めたら詰まったこと</li>
+              <li>「へえ」と言った箇所</li>
+              <li>判断の根拠（なぜ A ではなく B か）</li>
+            </ul></div>
+            <div class="judge--out"><h4>入れない</h4><ul>
+              <li>デッキ README の「前提」に既にあること</li>
+              <li>調べれば 10 秒で出るリファレンス</li>
+              <li>一覧・手順の丸暗記</li>
+              <li>文脈のない用語定義</li>
+              <li>「明日使う場面」が答えられなかったもの</li>
+              <li>既存カードと同じ表面</li>
+            </ul></div>
+          </div>
+
+          <h4>カードの形</h4>
+          <ul class="plain">
+            <li><b>1 カード 1 事実。</b>「かつ」「および」が入ったら分割する。</li>
+            <li><b>表面は想起のきっかけ。</b> 用語ではなく、実際に遭遇する状況の形にする。</li>
+            <li><b>裏面は一文 + なぜ。</b> 理由が無いカードは忘れる。</li>
+            <li>手続きや文章の穴埋めが向くなら <code>{{c1::...}}</code> を使う。</li>
+            <li>出典メモは <code>&lt;!-- --&gt;</code> に書く（Anki には送られない）。</li>
+          </ul>
+          <div class="tw"><table>
+            <thead><tr><th></th><th>表面</th></tr></thead>
+            <tbody>
+              <tr><td class="k" style="color:var(--pending)">悪い</td><td><code>useEffect の依存配列</code></td></tr>
+              <tr><td class="k" style="color:var(--accent-ink)">良い</td><td><code>useEffect の依存配列に空配列を渡すと、いつ再実行される？</code></td></tr>
+            </tbody>
+          </table></div>
+        </div></li>
+
+        <li><span class="step-n">4</span><div class="step-b">
+          <h3>ブランチで作成・コミット</h3>
+          <p>ここまでは承認なしで進めてよい。ブランチの中身は Anki に影響しない。</p>
+          <div class="cmd">uv run ankikit stage &lt;slug&gt;      <span class="c"># staging/&lt;slug&gt; に切り替え（無ければ main から作る）</span>
+<span class="c"># decks/&lt;slug&gt;/cards/&lt;YYYY-MM-DD&gt;.md に書く（既にあれば末尾に追記。既存カードは触らない）</span>
+uv run ankikit lint --deck &lt;slug&gt;
+git add decks/&lt;slug&gt; &amp;&amp; git commit -m "cards(&lt;slug&gt;): &lt;YYYY-MM-DD&gt; N枚"</div>
+          <p class="note">エラー 0 件を確認してからコミットする。<b><code>decks/</code> 配下だけを add する。</b></p>
+        </div></li>
+
+        <li><span class="step-n">5</span><div class="step-b">
+          <h3>承認（main へマージ）</h3>
+          <div class="cmd">git diff main...HEAD -- decks/</div>
+          <p>差分を見せて、承認を求める。</p>
+          <div class="quote"><code>staging/&lt;slug&gt;</code> に N 枚コミットした。main にマージすると Anki に入る。マージしていい？</div>
+          <p class="note note--gate"><b>明示的に承認されるまでマージしない。</b>「消したい」「直したい」と言われたら、ブランチ上で直してコミットし直し、もう一度聞く。</p>
+          <div class="cmd">uv run ankikit approve &lt;slug&gt;   <span class="c"># staging/&lt;slug&gt; を main に --no-ff マージし、main に切り替わる</span></div>
+        </div></li>
+
+        <li><span class="step-n">6</span><div class="step-b">
+          <h3>push</h3>
+          <div class="cmd">uv run ankikit push --deck &lt;slug&gt;</div>
+          <ul class="plain">
+            <li>「追加 N / 更新 M」の行を<b>そのまま報告する</b>。</li>
+            <li>「追加 0」なら、まだマージされていない。<code>uv run ankikit pending</code> で確認する。</li>
+            <li>Anki が起動していないと <code>AnkiConnect に接続できません</code> で落ちる。そのときは<b>カードは main にマージ済みで無事</b>だと伝え、「Anki を起動して <code>uv run ankikit push</code>」と案内する。<b>ここで作業を巻き戻さない。</b></li>
+            <li>ノートタイプ名で失敗したら <code>uv run ankikit doctor</code> の結果を見せる。</li>
+          </ul>
+          <p class="note">最後は 2〜3 行で締める。今日の枚数、どのデッキに入ったか、次に掘ると良さそうな残りの論点。長い総括は要らない。</p>
+        </div></li>
+      </ol>
+
+      <div class="never" style="margin-top:34px">
+        <h4>やらないこと</h4>
+        <ul>
+          <li>デッキを決めずに掘り始める</li>
+          <li>質問を飛ばしていきなりカードを作る</li>
+          <li>承認なしで main にマージする</li>
+          <li><code>--worktree</code> で未承認のカードを push する</li>
+          <li>1 セッションで 15 枚以上作る</li>
+          <li>ユーザーが言っていない知識を「補足」として勝手にカードにする</li>
+          <li><code>decks/</code> 以外のファイルを一緒にコミットする</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- ══ initialize ══ -->
+    <section id="initialize" data-title="/anki-initialize デッキの立ち上げ">
+      <span class="eyebrow">skill</span>
+      <h2>/anki-initialize — 新しいデッキを立ち上げる（1 デッキ 1 回）</h2>
+      <p class="lede">grill は「今日あったこと」を掘るが、initialize は<b>まだ何も起きていない状態に骨組みを置く</b>。だから<b>このスキルに限り、モデル側が論点と裏面を持ち込む</b>。</p>
+
+      <div class="judge" style="margin-top:20px">
+        <div class="judge--in"><h4>その代わりの歯止め</h4><ul>
+          <li>カードにするのは<b>ユーザーが答えられなかったものだけ</b></li>
+          <li>裏面はモデルが書くが、<b>1 枚ずつ正しさを確認させる</b></li>
+        </ul></div>
+        <div class="judge--out"><h4>承認境界は grill と同じ</h4><ul>
+          <li>main にマージされるまで Anki には 1 枚も入らない</li>
+        </ul></div>
+      </div>
+
+      <h3 style="margin-top:34px">0. 下ごしらえ（黙ってやる）</h3>
+      <ul class="plain">
+        <li><code>decks/README.md</code> — 記法とコマンド</li>
+        <li><code>decks/*/README.md</code> を<b>全部</b> — 似た目的のデッキがあれば、新設せず<b>そこに足すこと</b>を先に提案する</li>
+        <li><code>uv run ankikit decks</code> — 未マージが残っていたら先に片付けるか聞く</li>
+      </ul>
+
+      <ol class="steps" style="margin-top:34px">
+        <li><span class="step-n">1</span><div class="step-b">
+          <h3>スコープの確定</h3>
+          <p>デッキは「<b>入れる基準が書ける粒度</b>」でだけ切る。ここが決まらないと以後の全セッションの判断がぶれる。1 問ずつ聞く。</p>
+          <div class="quote">何を覚えたい？ 具体的に。</div>
+          <div class="quote">なぜ今？ 何をしていて必要になった？</div>
+          <div class="quote">3 か月後、何ができていれば「作ってよかった」と言える？</div>
+          <div class="tw"><table>
+            <thead><tr><th>粒度</th><th>例</th><th>症状</th></tr></thead>
+            <tbody>
+              <tr><td class="k" style="color:var(--pending)">広すぎ</td><td><code>プログラミング</code> <code>英語</code></td><td>入れる基準が「役に立つこと」にしかならない。切り直す</td></tr>
+              <tr><td class="k" style="color:var(--accent-ink)">ちょうど</td><td><code>react-rendering</code> <code>sre-oncall</code> <code>meeting-english</code></td><td>入れない基準を具体例で書ける</td></tr>
+              <tr><td class="k" style="color:var(--pending)">狭すぎ</td><td><code>useEffect の依存配列</code></td><td>10 枚で尽きる。一段上げる</td></tr>
+            </tbody>
+          </table></div>
+          <p>決まったら slug（kebab-case）と Anki 上のデッキ名（<code>親::子</code>）を提案し、確認を取ってから作る。</p>
+          <div class="cmd">uv run ankikit new &lt;slug&gt; --anki-deck "親::子"</div>
+          <p class="note note--warn"><b><code>new</code> を先に実行すること。</b> <code>ankikit stage</code> は <code>decks/&lt;slug&gt;/</code> が存在しないと失敗する。</p>
+        </div></li>
+
+        <li><span class="step-n">2</span><div class="step-b">
+          <h3>方針を仮置きする</h3>
+          <p><b>README をここで全部埋めない。</b> 問診の軸になる分だけ決める。</p>
+          <ul class="plain">
+            <li><b>目的</b> — 1〜2 文。1 で聞いた「3 か月後」をそのまま使う</li>
+            <li><b>スコープ外</b> — 今回は扱わないもの（例: <code>sre-oncall</code> なら「Kubernetes の内部実装は扱わない」）</li>
+          </ul>
+          <p class="note">入れる基準・入れない基準は <b>5 で確定させる</b>。今書くと、実際に何を捨てたかを知らないまま「重要なことを入れる」のような使えない基準になる。</p>
+        </div></li>
+
+        <li><span class="step-n">3</span><div class="step-b">
+          <h3>棚卸し面談（このスキルの本体）</h3>
+          <p><b>目的は「知らないことの発見」であって、教えることではない。</b> ここで解説を始めない。</p>
+          <ol class="plain">
+            <li>スコープから<b>論点を 15〜25 個立てる</b>。<b>リストはユーザーに見せない</b>（見せると自己申告になり、一番危険な「知っているつもり」が素通りする）。</li>
+            <li><b>1 問ずつ口頭でテストする。</b> まとめて 3 つ出さない。</li>
+            <li>答えを聞いて 3 つに仕分ける。</li>
+          </ol>
+          <div class="tw"><table>
+            <thead><tr><th>反応</th><th>扱い</th></tr></thead>
+            <tbody>
+              <tr><td class="k">即答できた</td><td><b>捨てる。</b> 5 の「前提」に記録する</td></tr>
+              <tr><td class="k">説明が詰まった・曖昧</td><td><b>カード候補</b>（最良の候補）</td></tr>
+              <tr><td class="k">「知らない」と即答</td><td>カード候補。ただしスコープ内かを確認してから</td></tr>
+            </tbody>
+          </table></div>
+          <p class="note"><b>「知ってる」には必ず説明させる。</b> 用語を言えるのは知っているうちに入らない。→「じゃあ説明して。3 行で。」</p>
+
+          <details><summary>論点の立て方（ストック）</summary><div class="d-body">
+            <ul>
+              <li><b>地雷</b>: この分野を始めた人が最初の 1 か月で必ず踏む間違いは？</li>
+              <li><b>区別</b>: 似ていて混同されるペアは？ 何が違う？</li>
+              <li><b>境界</b>: それが使えないのはどういうときか。例外は？</li>
+              <li><b>既定値</b>: 何も指定しないとどうなるか</li>
+              <li><b>由来</b>: なぜそういう仕様 / 語法になっているか</li>
+              <li><b>手順の落とし穴</b>: 順番を間違えると壊れるところ</li>
+              <li><b>本人固有</b>: ユーザーの環境・仕事で、それが実際に出てくる形は？</li>
+            </ul>
+            <p class="note"><b>本人固有の論点を必ず混ぜる。</b> 一般論だけで組むと教科書のコピーになり、思い出すきっかけにならない。</p>
+          </div></details>
+          <details><summary>やめる合図</summary><div class="d-body">
+            <ul>
+              <li>カード候補が 20 に達した</li>
+              <li><b>3 問続けて即答された</b> → 論点が浅い。一段深くするか、スコープ自体を上げる</li>
+              <li>3 問続けて「まったく知らない」 → 深すぎる。初期化ではなく学習が先。段を下げる</li>
+              <li>ユーザーが「もういい」と言った</li>
+            </ul>
+          </div></details>
+        </div></li>
+
+        <li><span class="step-n">4</span><div class="step-b">
+          <h3>カード化</h3>
+          <p><b>答えられなかった問いだけ</b>をカードにする。即答できたものを「念のため」入れない。</p>
+          <ul class="plain">
+            <li><b>表面</b>はユーザーが詰まった問いの形をそのまま使う</li>
+            <li><b>裏面はモデルが書く。これはこのスキルだけの例外。</b> 一文 ＋ なぜ</li>
+            <li>1 カード 1 事実</li>
+          </ul>
+          <h4>裏面の確認（省略しない）</h4>
+          <div class="quote">これで合ってる？ 違ってたら直して。</div>
+          <ul class="plain">
+            <li>ユーザーが自分の環境の言葉で言い直したら、<b>その言い方を採用する</b></li>
+            <li><b>「正しいか判断できない」と言われたカードは作らない。</b> 正しさを確認できないカードは毒で、間違ったまま何か月も復習することになる。捨てるか、調べてから次のセッションに回す</li>
+          </ul>
+          <p>書く場所は <code>decks/&lt;slug&gt;/cards/&lt;YYYY-MM-DD&gt;.md</code>。冒頭のフロントマターに出所を残すと、初期化のカードだけを Anki 側で後から絞り込める。</p>
+          <div class="cmd">---
+tags: [seed]
+---</div>
+          <p>10〜20 枚。番号付きで表面と裏面をそのまま見せる。長い解説は要らない。</p>
+        </div></li>
+
+        <li><span class="step-n">5</span><div class="step-b">
+          <h3>方針を確定させる</h3>
+          <p>ここまでで「実際に何が弱かったか」が分かっている。<code>decks/&lt;slug&gt;/README.md</code> を書き切る。</p>
+          <ul class="plain">
+            <li><b>入れる基準 / 入れない基準は、このセッションで実際に拾った例・捨てた例を引いて書く。</b><br>悪い:「重要なことを入れる」／良い:「即答できずに詰まった問いだけ。用語の定義だけのカードは入れない（今日 3 問捨てた）」</li>
+            <li><b><code>## 前提（既に押さえていること）</code></b> に、3 で即答できた論点を箇条書きで残す。以後の <code>/anki-grill</code> がこれを読み、<b>同じことを二度と聞かない・カードにしない</b>。</li>
+            <li><b>運用メモ</b>: 1 日の新規枚数の目安、次に掘る予定の領域</li>
+          </ul>
+        </div></li>
+
+        <li><span class="step-n">6</span><div class="step-b">
+          <h3>ブランチでコミット（方針とカードを分ける）</h3>
+          <div class="cmd">uv run ankikit stage &lt;slug&gt;
+uv run ankikit lint --deck &lt;slug&gt;
+
+git add decks/&lt;slug&gt;/README.md &amp;&amp; git commit -m "deck(&lt;slug&gt;): 方針"
+git add decks/&lt;slug&gt;/cards   &amp;&amp; git commit -m "cards(&lt;slug&gt;): &lt;YYYY-MM-DD&gt; N枚（初期）"</div>
+          <p class="note">分けておくと、承認時に「方針」と「カード」を別々に確認できる。</p>
+        </div></li>
+
+        <li><span class="step-n">7</span><div class="step-b">
+          <h3>承認（main へマージ）</h3>
+          <div class="cmd">git diff main...HEAD -- decks/</div>
+          <div class="quote"><code>staging/&lt;slug&gt;</code> に方針と N 枚をコミットした。main にマージすると Anki に入る。マージしていい？</div>
+          <p class="note note--gate">「この枚は要らない」と言われたら、ブランチ上で消してコミットし直し、もう一度聞く。承認されたら <code>uv run ankikit approve &lt;slug&gt;</code>。</p>
+        </div></li>
+
+        <li><span class="step-n">8</span><div class="step-b">
+          <h3>push</h3>
+          <div class="cmd">uv run ankikit push --deck &lt;slug&gt;</div>
+          <p>最後は 2〜3 行。デッキ名、枚数、次に掘ると良さそうな領域。総括は要らない。</p>
+        </div></li>
+      </ol>
+
+      <div class="never" style="margin-top:34px">
+        <h4>やらないこと</h4>
+        <ul>
+          <li>スコープを決めずに論点を出す</li>
+          <li>論点リストを見せて「知ってる / 知らない」を自己申告させる</li>
+          <li>ユーザーが即答できたことをカードにする</li>
+          <li>ユーザーが正しさを確認できなかった裏面を残す</li>
+          <li>棚卸しの途中で解説を始める（診断であって授業ではない）</li>
+          <li>1 回の初期化で 20 枚を超える</li>
+          <li>方針を書かずにカードだけ作る</li>
+          <li>承認なしで main にマージする</li>
+          <li><code>--worktree</code> で未承認のカードを push する</li>
+        </ul>
+      </div>
+    </section>
+
+        <!-- ══ カードの書き方 ══ -->
+    <section id="cards" data-title="カードの書き方">
+      <h2>カードの書き方</h2>
+      <p class="prose">デッキ 1 つ = ディレクトリ 1 つ。ここが<b>カードの正</b>で、Anki には片方向に流し込む。Anki 側で直接編集した内容は戻ってこないので、直したいときはこのファイルを直して push し直す。</p>
+
+      <div class="tree" style="margin-top:20px">decks/
+  <b>english-vocab/</b>
+    <b>README.md</b>            ← このデッキの方針（フロントマターが設定になる）
+    cards/
+      <b>2026-08-20.md</b>      ← その日に足したカード
+      2026-08-21.md</div>
+
+      <h3>デッキ README.md</h3>
+      <p class="prose">フロントマターが設定、本文が方針。方針の本文は <code>/anki-grill</code> が読んで「何をカードにするか」を判断する材料になるので、<b>入れる基準と入れない基準は具体的に</b>書く。</p>
+      <div class="cmd">---
+anki_deck: "英語::語彙"   <span class="c"># Anki 上の実デッキ名。:: で階層。省略時はディレクトリ名</span>
+note_type: basic          <span class="c"># basic | cloze（カード側に {{c1::}} があれば自動で cloze）</span>
+tags: [english]           <span class="c"># このデッキの全カードに付くタグ</span>
+---
+
+## 目的
+## 入れる基準
+## 入れない基準
+## 前提（既に押さえていること）
+## カードの作り方
+## 運用メモ</div>
+      <p class="note"><code>## 前提</code> は <code>/anki-initialize</code> の棚卸しで<b>即答できた</b>論点を残す場所。<code>/anki-grill</code> がこれを読んで、既に押さえていることを二度と聞かない・カードにしないための基準になる。</p>
+      <p class="note note--warn">雛形は <code>uv run ankikit new &lt;slug&gt; --anki-deck "英語::語彙"</code> で作れるが、<b>新しいデッキは <code>/anki-initialize</code> から始めるのが本筋</b>（方針と最初の 10〜20 枚をまとめて作る）。</p>
+
+      <h3>カードファイル（cards/YYYY-MM-DD.md）</h3>
+      <div class="cmd">---
+tags: [meeting]          <span class="c"># このファイル内の全カードに付くタグ（省略可）</span>
+---
+
+## Q: circle back
+A: 後で改めて議論する
+&lt;!-- 出典: 今日のMTGで上司が使った --&gt;
+
+## {{c1::defer}} to someone
+A: 人の判断に従う / 一任する
+tags: nuance</div>
+
+      <div class="tw" style="margin-top:16px"><table>
+        <thead><tr><th>記法</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>## </code> 行</td><td>カードの開始。行頭の <code>Q:</code> は飾りなので取り除かれる</td></tr>
+          <tr><td class="k"><code>A:</code> 行</td><td>ここから裏面。次の <code>## </code> か EOF まで（複数行可）</td></tr>
+          <tr><td class="k"><code>tags:</code> 行</td><td>そのカード固有のタグ。空白かカンマ区切り</td></tr>
+          <tr><td class="k"><code>&lt;!-- ... --&gt;</code></td><td>ファイル内のメモ。<b>Anki には送られない</b>。カードに残したいなら <code>A:</code> の本文に書く</td></tr>
+          <tr><td class="k"><code>{{c1::...}}</code></td><td>表面に含めると穴埋めカードになる</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">書式チェックは <code>uv run ankikit lint</code>。</p>
+
+      <h3>重複と更新</h3>
+      <p class="prose">同一カードかどうかは<b>表面のハッシュ</b>で判定し、Anki 側には <code>ankikit-uid::&lt;hash&gt;</code> タグが付く。</p>
+      <div class="tw" style="margin-top:14px"><table>
+        <thead><tr><th>直した場所</th><th>push したときの挙動</th></tr></thead>
+        <tbody>
+          <tr><td class="k">裏面だけ</td><td>既存カードを<b>更新</b>（学習履歴は維持される）</td></tr>
+          <tr><td class="k">表面</td><td><b>別カードとして追加</b>される。古い方は Anki に残るので手で消す</td></tr>
+          <tr><td class="k">同じ表面を 2 回</td><td><code>lint</code> がエラーにする</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">フィールドは HTML なので、改行は <code>to_html()</code> で <code>&lt;br&gt;</code> に変換してから送る。<b>行頭の空白は落とされる。</b></p>
+    </section>
+
+    <!-- ══ 英単語 ══ -->
+    <section id="eng" data-title="英単語（ankikit eng）">
+      <h2>英単語 — JSON から一気に流し込む</h2>
+      <p class="prose"><code>english-vocab</code> デッキだけは対話も承認面談も通さない。本から拾った単語に「今日どこで詰まった？」と聞く意味は無いので、<b>自分で JSON に打ち込んで <code>ankikit eng</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。</p>
+
+      <div class="cmd">uv run ankikit eng words.json            <span class="c"># 検証 → 重複除外 → 追記 → コミット → Anki</span>
+uv run ankikit eng words.json --dry-run  <span class="c"># 何が登録され何が弾かれるかだけ見る</span>
+uv run ankikit eng words.json --tag duo3 <span class="c"># 全カードに出典タグを付ける</span></div>
+
+      <p class="note note--warn">承認の原則は形を変えて残っている。<code>eng</code> は <b>main 上でしか push しない</b>ので、「Anki にあるもの = main にあるもの」は崩れない。他のブランチで書くだけなら <code>--no-push</code>。</p>
+
+      <h3>入力 JSON</h3>
+      <p class="prose">本から手で打ち込む前提の形式。配列だけでも、設定つきのオブジェクトでも受ける。</p>
+      <div class="cmd">{
+  "tags": ["duo3"],                            <span class="c"># 全カードに付くタグ（省略可）</span>
+  "words": [
+    {"word": "anyway", "sentence": "Let's try anyway.", "meaning": "とにかく"},
+    {"word": "circle back", "sentence": "She circled back to me.", "note": "p.42"},
+    {"word": "wake", "sentence": "I ____ up early.", "meaning": "目を覚ます"}
+  ]
+}</div>
+
+      <div class="tw" style="margin-top:16px"><table>
+        <thead><tr><th>キー</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>word</code> / <code>単語</code></td><td><b>必須。</b>覚えたい語。空欄の答えになる</td></tr>
+          <tr><td class="k"><code>sentence</code> / <code>例文</code></td><td><b>必須。</b>出会った文をそのまま。<code>____</code> を書けばそこが空欄、書かなければ <code>word</code> を文中から探す</td></tr>
+          <tr><td class="k"><code>meaning</code> / <code>意味</code></td><td>日本語の訳。省略可</td></tr>
+          <tr><td class="k"><code>note</code> / <code>メモ</code></td><td>出典ページや語法メモ。省略可</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>できあがるカード</h3>
+      <div class="cmd">## Let's try ____.          <span class="c"># 表面 = 例文の該当語を空欄にしたもの</span>
+A: anyway                  <span class="c"># 裏面 = 単語 / 意味 / 完全な例文 / メモ</span>
+とにかく
+Let's try anyway.
+tags: word::anyway         <span class="c"># ← 重複判定のキー。消すと同じ単語が二重に入る</span></div>
+      <p class="note">目標は「anyway = とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから表面は単語ではなく例文になっている。</p>
+
+      <h3>空欄化のルール</h3>
+      <div class="tw"><table>
+        <thead><tr><th>入力</th><th>どうなるか</th></tr></thead>
+        <tbody>
+          <tr><td class="k">例文に <code>____</code> がある</td><td>そこが空欄。不規則変化（<code>wake</code> → <code>woke</code>）はこれで書く</td></tr>
+          <tr><td class="k">そのままの語がある</td><td>その語を空欄にする。大小は無視（<code>Anyway</code> も可）</td></tr>
+          <tr><td class="k">素直な語形変化</td><td><code>circle</code> → <code>circled</code>、<code>stop</code> → <code>stopped</code> 程度までは追う</td></tr>
+          <tr><td class="k">見つからない</td><td><b>その 1 件だけエラー</b>。答えが表面に見えるカードは作らない</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>重複と壊れた入力</h3>
+      <p class="prose">重複判定はこのデッキだけ<b>単語</b>で行う（他のデッキは表面のハッシュ）。<code>Circle Back</code> と <code>circle-back</code> は同じ語として扱う。</p>
+      <p class="note"><b>1 件の不備で全体は止まらない。</b>壊れた行と重複だけ落として、残りはそのまま登録する。だから同じファイルに追記しながら何度流してもよく、直した行だけが後から入る。全部止めたいときは <code>--strict</code>。</p>
+      <div class="cmd"><span class="c">ERROR [5] woke: 例文に 'woke' が見つからないので空欄にできません。…</span>
+<span class="c">ERROR [6] defer: sentence が空です</span>
+<span class="c">重複: [4] Anyway: ファイル内の [1] と同じ単語なので飛ばしました</span>
+english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 1 / 不備 2</div>
+      <div class="tw" style="margin-top:16px"><table>
+        <thead><tr><th>終了コード</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td class="k">0</td><td>全件そのまま登録できた</td></tr>
+          <tr><td class="k">1</td><td>登録はしたが、飛ばした行がある</td></tr>
+          <tr><td class="k">2</td><td>1 枚も作れない（ファイルが無い / JSON が壊れている / Anki が起動していない）</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">JSON が壊れていたら行・桁とその行の中身を出す。全角の <code>：</code> や末尾の余分なカンマといった手打ちの定番はヒントまで出る。</p>
+
+      <h3>何を入れるか</h3>
+      <div class="judge">
+        <div class="judge--in"><h4>入れる</h4><ul>
+          <li>読んでいて意味が取れずに止まった語</li>
+          <li>意味は知っていたが、その文での使われ方が意外だった語</li>
+          <li>例文が本文からそのまま取れる語（自作の例文より、出会った文を使う）</li>
+        </ul></div>
+        <div class="judge--out"><h4>入れない</h4><ul>
+          <li>例文なしの単語（この形式に載らない）</li>
+          <li>固有名詞、専門用語そのもの</li>
+          <li>既にこのデッキにある語（<code>word::</code> タグで自動的に弾かれる）</li>
+        </ul></div>
+      </div>
+      <p class="note">1 ファイル 20〜40 語くらいが読み返しやすい。本の章ごとに分け、<code>--tag duo3</code> のように出典をタグに入れておくと後で絞り込める。</p>
+    </section>
+
+    <!-- ══ コマンド ══ -->
+    <section id="commands" data-title="コマンド">
+      <h2>コマンド</h2>
+      <p class="prose">コマンド名は <code>ankikit</code>。グローバルの <code>~/.local/bin/anki</code> は別ツールなので混同しない。</p>
+
+      <h3>承認フロー（この順に叩く）</h3>
+      <div class="cmd">uv run ankikit stage &lt;slug&gt;        <span class="c"># staging/&lt;slug&gt; に切り替え（無ければ main から作る）</span>
+<span class="c">#   → decks/&lt;slug&gt;/cards/YYYY-MM-DD.md を書く</span>
+uv run ankikit lint --deck &lt;slug&gt;  <span class="c"># 書式チェック</span>
+git add decks/&lt;slug&gt; &amp;&amp; git commit -m "cards(&lt;slug&gt;): YYYY-MM-DD N枚"
+git diff main...HEAD -- decks/     <span class="c"># 承認前の確認</span>
+uv run ankikit approve &lt;slug&gt;      <span class="c"># main へ --no-ff マージ ＝ 承認</span>
+uv run ankikit push --deck &lt;slug&gt;  <span class="c"># ここで初めて Anki に入る</span></div>
+
+      <h3>一覧</h3>
+      <div class="tw"><table>
+        <thead><tr><th>コマンド</th><th>用途</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>ankikit decks</code></td><td>デッキ一覧・枚数・未マージ枚数</td></tr>
+          <tr><td class="k"><code>ankikit new &lt;slug&gt;</code></td><td>デッキの雛形作成</td></tr>
+          <tr><td class="k"><code>ankikit stage &lt;slug&gt;</code></td><td>デッキ用の staging ブランチに切り替え</td></tr>
+          <tr><td class="k"><code>ankikit lint</code></td><td>書式チェック（作業ツリー）</td></tr>
+          <tr><td class="k"><code>ankikit pending</code></td><td>まだ main にマージされていないカード</td></tr>
+          <tr><td class="k"><code>ankikit approve &lt;slug&gt;</code></td><td>staging を main にマージ（＝承認）</td></tr>
+          <tr><td class="k"><code>ankikit push --dry-run</code></td><td>何が追加・更新されるか確認</td></tr>
+          <tr><td class="k"><code>ankikit push --deck &lt;slug&gt;</code></td><td>反映（main の内容のみ・Anki 起動が必要）</td></tr>
+          <tr><td class="k"><code>ankikit eng &lt;file.json&gt;</code></td><td>英単語 JSON をカードにして Anki まで反映（<a href="#eng">詳細</a>）</td></tr>
+          <tr><td class="k"><code>ankikit install</code></td><td>スキル（<code>/anki-grill</code>・<code>/anki-initialize</code>）をこのリポジトリに配置（<a href="#setup">詳細</a>）</td></tr>
+          <tr><td class="k"><code>ankikit doctor</code></td><td>Anki 接続とノートタイプ名の確認</td></tr>
+          <tr><td class="k"><code>uv run pytest</code></td><td>テスト（道具側のリポジトリで）</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note note--warn"><code>--ref &lt;branch&gt;</code> で承認済みとみなすブランチを変えられる。<code>push --worktree</code> は<b>承認を無視して</b>作業ツリーを送る非常口。通常は使わない。</p>
+    </section>
+
+    <!-- ══ リポジトリ ══ -->
+    <section id="repo" data-title="リポジトリを触る">
+      <h2>リポジトリを触る</h2>
+      <p class="prose">道具（public <code>ankikit</code>）とカード（private <code>anki-decks</code>）で置き場が分かれている。<b>どちらに何があるか</b>を先に押さえる。</p>
+
+      <h3>道具側 — public <code>ankikit</code></h3>
+      <div class="tw"><table>
+        <thead><tr><th>パス</th><th>役割</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>src/ankikit/</code></td><td>ライブラリ層（<code>parser</code> → <code>deck</code> → <code>sync</code> → <code>connect</code>、承認判定は <code>approval</code>）</td></tr>
+          <tr><td class="k"><code>src/ankikit/vocab.py</code></td><td>英単語 JSON の検証・例文の空欄化・重複キー（<code>ankikit eng</code> の中身）</td></tr>
+          <tr><td class="k"><code>src/ankikit/commands/</code></td><td>サブコマンド 1 つ = 1 モジュール。<code>cli.py</code> は組み立てるだけ</td></tr>
+          <tr><td class="k"><code>src/ankikit/skills/</code></td><td><b>スキルの正。</b><code>ankikit install</code> がここからカード側へ配る</td></tr>
+          <tr><td class="k"><code>decks/README.md</code></td><td>カードファイルの記法（カードそのものではなく仕様）</td></tr>
+          <tr><td class="k"><code>docs/handbook.html</code></td><td>このページ。<code>build_pages.py</code> が包んで GitHub Pages へ</td></tr>
+          <tr><td class="k"><code>tests/</code></td><td>pytest。<code>uv run pytest</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>カード側 — private <code>anki-decks</code></h3>
+      <div class="tw"><table>
+        <thead><tr><th>パス</th><th>役割</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>decks/&lt;slug&gt;/README.md</code></td><td>そのデッキの方針。「入れる基準／入れない基準」が判断材料</td></tr>
+          <tr><td class="k"><code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code></td><td>カード本体</td></tr>
+          <tr><td class="k"><code>anki.toml</code></td><td>Anki 環境依存の設定（ノートタイプ名・フィールド名）</td></tr>
+          <tr><td class="k"><code>.claude/skills/</code></td><td><code>ankikit install</code> が置く。手で直すなら <code>--force</code> の挙動に注意</td></tr>
+          <tr><td class="k"><code>pyproject.toml</code></td><td><code>ankikit</code> への依存だけ。<code>uv.lock</code> でバージョンが固定される</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>サブコマンドを足す</h3>
+      <p class="prose"><code>commands/</code> にファイルを 1 つ作り（<code>NAME</code> / <code>HELP</code> / <code>add_arguments(parser)</code> / <code>run(args) -&gt; int</code>）、<code>commands/__init__.py</code> の <code>ALL</code> に並べる。<b><code>cli.py</code> は触らない。</b></p>
+      <p class="note"><code>decks/</code> が無くても走るコマンド（<code>new</code> <code>install</code> <code>doctor</code>）は <code>NEEDS_DECKS = False</code> を置く。既定は <code>True</code> で、<code>decks/</code> が見つからなければ <code>cli</code> が理由を出して止める。</p>
+
+      <h3>実装上の注意</h3>
+      <ul class="plain">
+        <li><b>カードの置き場は <code>config.find_repo_root()</code> が決める。</b> 環境変数 <code>ANKI_REPO_ROOT</code> → カレントから上へ <code>anki.toml</code> / <code>decks/</code> を探す → 開発時のパッケージ 2 つ上、の順。<b>依存として入れると 3 番目は site-packages を指すので当てにできない。</b></li>
+        <li><code>approval.decks_at(ref)</code> が <code>git archive</code> で ref 時点の <code>decks/</code> を一時展開する。push はそこを読む。<b>一時ディレクトリなので、カードの読み込みは必ず <code>with</code> の中で終わらせる。</b></li>
+        <li>同一カード判定は<b>表面のハッシュ</b>（<code>ankikit-uid::&lt;hash&gt;</code> タグ）。ただし <code>english-vocab</code> だけは<b>単語</b>（<code>word::&lt;単語&gt;</code> タグ）。</li>
+        <li>ノートタイプ名は Anki の UI 言語で変わる。<code>config.py</code> の <code>DEFAULTS</code> が既定値で、<code>anki.toml</code> の <code>[note_types]</code> が項目単位で上書きする。<code>ankikit doctor</code> で確認する。</li>
+        <li>フィールドは HTML。改行は <code>to_html()</code> で <code>&lt;br&gt;</code> に変換してから送る。行頭の空白は落とされる。</li>
+        <li><code>ANKI_CONNECT_URL</code> で接続先を差し替えられる。</li>
+      </ul>
+
+      <h3>anki.toml（英語 UI の場合）</h3>
+      <div class="cmd">[note_types.basic]
+model = "Basic"
+front = "Front"
+back  = "Back"
+
+[note_types.cloze]
+model = "Cloze"
+front = "Text"
+back  = "Back Extra"</div>
+    </section>
+
+    <!-- ══ Anki リファレンス ══ -->
+    <section id="anki-ref" data-title="Anki 本体リファレンス">
+      <h2>Anki 本体リファレンス</h2>
+      <p class="prose">Anki の構造は 4 層に分かれ、設定もこの階層ごとに存在する。<b>デッキ自体は学習アルゴリズムの数値をほぼ持たない</b>——それはデッキオプション（プリセット）が保持し、複数デッキで共有できる。</p>
+
+      <div class="tree" style="margin-top:20px"><b>デッキ (Deck)</b>          カードの置き場
+ └─ <b>カード (Card)</b>       ノートタイプのテンプレートから自動生成
+     └─ <b>ノート (Note)</b>   フィールドにデータが入っている実体
+         └─ <b>ノートタイプ (Note Type / Model)</b>   フィールド定義＋カードテンプレート定義</div>
+
+      <h3>実践的な設定の勘所</h3>
+      <ol class="plain">
+        <li><b>アルゴリズムは FSRS 推奨。</b> Deck Options の一番下で ON。目標保持率 90% から始め、レビュー 1000 件を超えたら Optimize で個人最適化。</li>
+        <li><b>学習ステップは 1 日以内に収める。</b> FSRS 導入後は長い学習ステップは非推奨（<code>1m 10m</code> 程度で十分）。</li>
+        <li><b>1 日の新規カード枚数は少なめから。</b> 10〜20 枚 / 日で始め、こなせるようなら増やす。</li>
+        <li><b>Maximum reviews/day は絞りすぎない。</b> 低いと復習が繰り越されて雪だるま式に増える「隠れ滞留」を招く。</li>
+        <li><b>プリセットは目的別に複数用意。</b> 性質の違うデッキは別プリセットにする。</li>
+        <li><b>フラグ・タグは学習順序に影響しない。</b> 優先度を変えたいときは Reposition か フィルタデッキ。</li>
+      </ol>
+
+      <h3>各層の設定</h3>
+      <details><summary>デッキオプション（プリセット）</summary><div class="d-body">
+        <p>歯車アイコン → Options。<b>1 つのプリセットを複数デッキに割り当てられる</b>のがポイント。</p>
+        <div class="tw"><table>
+          <thead><tr><th>グループ</th><th>主な項目</th></tr></thead>
+          <tbody>
+            <tr><td class="k">Daily Limits</td><td>New cards/day（新規導入の上限）／ Maximum reviews/day（詰まり防止に大きめ推奨）／ 親子デッキ間で上限をどう共有するか</td></tr>
+            <tr><td class="k">New Cards</td><td>Learning steps（例 <code>1m 10m</code>）／ Order（追加順・ランダム）／ Insertion order</td></tr>
+            <tr><td class="k">Lapses</td><td>Relearning steps ／ Leech action（サスペンド or タグのみ）／ Leech threshold ／ Minimum interval</td></tr>
+            <tr><td class="k">Display Order</td><td>New/review order ／ Interday・Intraday learning order ／（FSRS 時）Ascending retrievability</td></tr>
+            <tr><td class="k">Burying</td><td>同じノートから生成された兄弟カードの重複出題を抑制（new / review / interday）</td></tr>
+            <tr><td class="k">Timer・Audio</td><td>解答時間の表示 ／ 自動再生・スキップ動作</td></tr>
+            <tr><td class="k">FSRS</td><td>有効化（グローバル）／ Desired retention（0.70〜0.97、目安 90%）／ FSRS parameters（Optimize で個人最適化）／ Maximum interval ／ Historical retention</td></tr>
+            <tr><td class="k">SM-2 専用</td><td>Starting ease ／ Easy bonus ／ Interval modifier ／ Graduating interval ／ Easy interval（FSRS 有効時は非表示）</td></tr>
+            <tr><td class="k">Easy Days</td><td>曜日ごとに Normal / Reduced / Minimum。間隔計算後の微調整で、過去には遡及しない</td></tr>
+          </tbody>
+        </table></div>
+      </div></details>
+
+      <details><summary>ノートタイプ（Note Type / Model）</summary><div class="d-body">
+        <p>「Manage Note Types」から管理。<b>フィールド構成とカードテンプレートのセット</b>であり、デッキとは独立した概念（同じノートタイプを異なるデッキで使い回せる）。</p>
+        <ul>
+          <li><b>フィールド</b>: 名前・並び順、表示フォント、Sticky（次の追加時に内容を保持）、Sort field（並び替え・重複チェックの基準）</li>
+          <li><b>カードテンプレート</b>: Front / Back Template（<code>{{フィールド名}}</code> で挿入、<code>{{FrontSide}}</code> で表面を引き継ぎ）、Styling (CSS)、条件付き表示 <code>{{#フィールド}}...{{/フィールド}}</code></li>
+          <li>1 つのノートタイプから<b>複数枚のカード</b>を自動生成できる（単語→意味 / 意味→単語）</li>
+          <li><b>特殊</b>: Cloze（<code>{{c1::語句}}</code>）／ Basic (and reversed card) ／ Image Occlusion</li>
+          <li><b>Change Note Type</b>: 既存ノートをフィールド対応させながら別ノートタイプへ移行</li>
+        </ul>
+      </div></details>
+
+      <details><summary>カードの状態とメタ値</summary><div class="d-body">
+        <div class="tw"><table>
+          <thead><tr><th>状態</th><th>説明</th></tr></thead>
+          <tbody>
+            <tr><td class="k">New</td><td>未学習</td></tr>
+            <tr><td class="k">Learning / Relearning</td><td>学習中・再学習中（短期間隔）</td></tr>
+            <tr><td class="k">Review</td><td>卒業後、長期間隔で復習中</td></tr>
+            <tr><td class="k">Suspended</td><td>一時停止（出題対象外）</td></tr>
+            <tr><td class="k">Buried</td><td>その日だけ非表示</td></tr>
+          </tbody>
+        </table></div>
+        <ul>
+          <li><b>メタ値</b>: Due ／ Interval ／ Ease factor（SM-2）・Stability / Difficulty（FSRS）／ Reps・Lapses ／ Flag ／ Tags</li>
+          <li><b>操作</b>: Forget（New に戻す）／ Set Due Date ／ Reposition ／ Find &amp; Replace</li>
+        </ul>
+      </div></details>
+
+      <details><summary>フィルタデッキ・全体設定</summary><div class="d-body">
+        <p><b>フィルタデッキ</b>は検索条件でカードを一時的に集める特殊デッキ（例 <code>is:due tag:英単語</code>）。「Reschedule based on my answers in this deck」のチェックを外すと、元のスケジュールに影響を与えず一時演習だけできる。</p>
+        <p><b>全体設定 (Preferences)</b>: Scheduler v3 ／ Next day starts at（日付の切り替わり時刻）／ Show next review time ／ AnkiWeb 同期 ／ バックアップ世代数 ／ 表示設定。</p>
+      </div></details>
+
+      <p class="note" style="margin-top:20px">出典: Anki 公式マニュアル（Deck Options / Note Types）および 2026 年時点の FSRS 関連ガイド。元文書は <code>docs/anki-reference.md</code>。</p>
+    </section>
+
+    <footer class="foot">
+      <span>ankikit — その日の学習を振り返って Anki デッキに落とし込むための道具箱</span>
+      <span>元文書: <code>README.md</code> / <code>decks/README.md</code> / <code>.claude/skills/</code> / <code>docs/anki-reference.md</code></span>
+    </footer>
+  </main>
+</div>
+
+<script>
+// ── 目次を section[data-title] から自動生成 ──────────
+(function(){
+  var secs = Array.prototype.slice.call(document.querySelectorAll('section[data-title]'));
+  var html = secs.map(function(s){
+    return '<li><a href="#' + s.id + '">' + s.dataset.title + '</a></li>';
+  }).join('');
+  document.getElementById('toc').innerHTML = html;
+  document.getElementById('tocm').innerHTML = html;
+
+  // ── スクロール追従 ──
+  var links = {};
+  document.querySelectorAll('#toc a').forEach(function(a){ links[a.getAttribute('href').slice(1)] = a; });
+  var seen = {};
+  var io = new IntersectionObserver(function(entries){
+    entries.forEach(function(e){ seen[e.target.id] = e.isIntersecting ? e.boundingClientRect.top : null; });
+    var current = null;
+    for (var i = 0; i < secs.length; i++) {
+      var r = secs[i].getBoundingClientRect();
+      if (r.top <= 120) current = secs[i].id;
+    }
+    if (!current) current = secs[0].id;
+    for (var id in links) links[id].setAttribute('aria-current', id === current ? 'true' : 'false');
+  }, {rootMargin: '-100px 0px -70% 0px', threshold: [0, 1]});
+  secs.forEach(function(s){ io.observe(s); });
+})();
+
+// ── コマンドブロックにコピーボタン ──────────────────
+document.querySelectorAll('.cmd').forEach(function(block){
+  var text = block.textContent;
+  var wrap = document.createElement('div');
+  wrap.className = 'cmd-wrap';
+  block.parentNode.insertBefore(wrap, block);
+  wrap.appendChild(block);
+
+  var btn = document.createElement('button');
+  btn.className = 'copy';
+  btn.type = 'button';
+  btn.textContent = 'copy';
+  btn.setAttribute('aria-label', 'コマンドをコピー');
+  btn.addEventListener('click', function(){
+    var done = function(){
+      btn.textContent = 'copied';
+      btn.dataset.done = '1';
+      setTimeout(function(){ btn.textContent = 'copy'; delete btn.dataset.done; }, 1400);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function(){ fallback(text, done); });
+    } else {
+      fallback(text, done);
+    }
+  });
+  wrap.appendChild(btn);
+});
+function fallback(text, done){
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); done(); } catch (e) { /* 手動選択にまかせる */ }
+  document.body.removeChild(ta);
+}
+</script>
