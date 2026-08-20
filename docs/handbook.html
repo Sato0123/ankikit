@@ -4,6 +4,16 @@
   このファイル 1 枚で完結する（ビルド不要 / 外部 JS 不要）。
   ブラウザで直接開いてもいいし、Artifact として公開してもそのまま動く。
 
+  節の順序は「読む人の必要順」で並べてある。書いた順や実装の都合で並べ替えない:
+    概要 → はじめる → 毎日の流れ → スキル → カードの書き方 → 英単語
+    → コマンド → 困ったとき → Anki 本体 → 実装メモ（道具を直す人だけ）
+
+  書くときの方針:
+    - 読者は人間。モデルへの指示文（「相槌を打たない」等）はここに置かない。
+      スキルの正は src/ankikit/skills/<name>/SKILL.md で、二重管理にすると必ずずれる。
+      人間が知りたいのは「何をされるか」だけなので、それだけを書く。
+    - CLI のフラグは src/ankikit/commands/*.py の add_argument と突き合わせてから書く。
+
   手入れの仕方:
     - 本文は下の <section> をそのまま編集する（HTML がそのまま画面の順序）
     - 節を足す = <section id="..." data-title="目次名"> を足すだけ。目次は自動生成される
@@ -326,37 +336,85 @@ details[open] summary{border-bottom:1px solid var(--line)}
     <section id="overview" data-title="概要" class="hero">
       <span class="eyebrow">handbook</span>
       <h1>その日の学習を掘り出して、<br>Anki カードにするまで</h1>
-      <p class="lede">対話で振り返り、記憶に残す価値のある部分だけをカードにする。カードは Markdown で書き、<b>main にマージされたものだけ</b>が Anki に入る。</p>
+      <p class="lede">対話で振り返り、記憶に残す価値のある部分だけをカードにする。カードは Markdown で書き、<b>main にマージしたものだけ</b>が Anki に入る。</p>
 
       <div class="tenets">
         <div class="tenet">
-          <span class="k">01 / SOURCE</span>
-          <p>カードの正は <b><code>decks/</code> 配下の Markdown</b>。Anki へは片方向に流し込むだけで、Anki 側の編集は戻ってこない。直したいときは Markdown を直して push し直す。</p>
+          <span class="k">01 / 正はファイル</span>
+          <p>カードの正体は <b><code>decks/</code> 配下の Markdown</b>。Anki へは片方向に流し込むだけ。Anki 側で直しても戻ってこないので、<b>直すときは Markdown を直して push し直す</b>。</p>
         </div>
         <div class="tenet">
-          <span class="k">02 / APPROVAL</span>
-          <p>承認の境界は <b>git のマージ</b>。ブランチ上で書いただけのカードは Anki に入らない。<b>マージが承認そのもの</b>。</p>
+          <span class="k">02 / 承認 = マージ</span>
+          <p>ブランチに書いただけのカードは Anki に入らない。<b>main へのマージが承認そのもの</b>。取り消したければマージ前に消すだけでいい。</p>
         </div>
         <div class="tenet">
-          <span class="k">03 / PUSH</span>
-          <p><code>ankikit push</code> が読むのは作業ツリーではなく <b>main の内容</b>。「追加 0」と出たら、まだマージされていないということ。</p>
+          <span class="k">03 / push は main を読む</span>
+          <p><code>ankikit push</code> が見るのは作業ツリーではなく <b>main の中身</b>。「追加 0」と出たら、書けていないのではなく<b>まだマージしていない</b>。</p>
         </div>
       </div>
+
+      <p class="note" style="margin-top:26px"><b>どこから読むか。</b> 初めてなら <a href="#quickstart">はじめる</a> →
+      毎日やることは <a href="#daily">毎日の流れ</a> → 書式を調べたいときは <a href="#cards">カードの書き方</a> →
+      動かないときは <a href="#trouble">困ったとき</a>。</p>
     </section>
 
-    <!-- ══ 全体の流れ ══ -->
-    <section id="flow" data-title="全体の流れ">
-      <h2>全体の流れ</h2>
-      <p class="prose">デッキを立ち上げるのは 1 デッキにつき 1 回（<code>/anki-initialize</code>）。あとは学習した日の終わりに毎回 <code>/anki-grill</code> を回す。下は grill の 6 ステップで、<b>横断する帯が承認ライン</b>。</p>
+    <!-- ══ はじめる ══ -->
+    <section id="quickstart" data-title="はじめる">
+      <h2>はじめる</h2>
+      <p class="prose"><b>置き場は 2 つに分かれている。</b> 道具は誰にでも配れるが、カードはあなただけのもの。git の履歴は後から消せないので、混ぜない。</p>
+
+      <div class="tw" style="margin-top:18px"><table>
+        <thead><tr><th></th><th>道具 — public <code>ankikit</code></th><th>カード — private <code>anki-decks</code></th></tr></thead>
+        <tbody>
+          <tr><td class="k">中身</td><td><code>src/ankikit/</code> <code>tests/</code> <code>docs/</code> <code>decks/README.md</code>（記法の仕様）</td><td><code>decks/&lt;slug&gt;/</code>（カード本体） <code>anki.toml</code> <code>.claude/skills/</code></td></tr>
+          <tr><td class="k">触る頻度</td><td>たまに（道具を直すとき）</td><td>毎日（振り返り）</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note" style="margin-top:14px">以下の手順はすべて<b>カード側</b>で行う。<code>find_repo_root()</code> がカレントから上へ <code>anki.toml</code> / <code>decks/</code> を探すので、その中に居れば環境変数は要らない。</p>
+
+      <ol class="steps" style="margin-top:30px">
+        <li><span class="step-n">1</span><div class="step-b">
+          <h3>PC 版 Anki に AnkiConnect を入れる</h3>
+          <p>アドオンコード <code>2055492159</code>（<a href="https://ankiweb.net/shared/info/2055492159">AnkiWeb</a>）。入れたら Anki を再起動する。<b>push のたびに Anki が起動している必要がある。</b></p>
+        </div></li>
+        <li><span class="step-n">2</span><div class="step-b">
+          <h3>カード用のリポジトリを作る</h3>
+          <div class="cmd">mkdir ~/anki-decks &amp;&amp; cd ~/anki-decks
+git init
+uv init --bare
+uv add "ankikit @ git+https://github.com/Sato0123/ankikit"</div>
+          <p class="note">道具を直しながら使うなら <code>[tool.uv.sources]</code> に <code>ankikit = { path = "../Anki", editable = true }</code>。直したそばから反映される。</p>
+        </div></li>
+        <li><span class="step-n">3</span><div class="step-b">
+          <h3>スキルを置く</h3>
+          <div class="cmd">uv run ankikit install</div>
+          <p><code>/anki-grill</code> と <code>/anki-initialize</code> が <code>.claude/skills/</code> に入る。スキルの正はパッケージの中（<code>src/ankikit/skills/</code>）なので、<b>道具を更新したら <code>install</code> を叩き直す</b>と最新になる。手で直したスキルは <code>--force</code> が無ければ上書きされない。</p>
+        </div></li>
+        <li><span class="step-n">4</span><div class="step-b">
+          <h3>つながっているか見る</h3>
+          <div class="cmd">uv run ankikit doctor</div>
+          <p>AnkiConnect のバージョンと、<code>anki.toml</code> のノートタイプ名が実在するかを出す。<b>NG が出たら先に直す</b>——ここを放置すると push で初めて転ぶ。<a href="#trouble">直し方</a>。</p>
+        </div></li>
+        <li><span class="step-n">5</span><div class="step-b">
+          <h3>最初のデッキを立ち上げる</h3>
+          <p><code>/anki-initialize</code> を呼ぶ。方針と最初の 10〜20 枚まで、この 1 回で作る。</p>
+        </div></li>
+      </ol>
+    </section>
+
+    <!-- ══ 毎日の流れ ══ -->
+    <section id="daily" data-title="毎日の流れ">
+      <h2>毎日の流れ</h2>
+      <p class="prose">デッキを立ち上げるのは 1 デッキにつき 1 回だけ（<code>/anki-initialize</code>）。あとは学習した日の終わりに <code>/anki-grill</code> を回す。下がその 6 ステップで、<b>横断する帯が承認ライン</b>。</p>
 
       <div class="flow" style="margin-top:24px">
         <div class="band band--branch">
-          <p class="band-label">branch <span>— ここまでは承認なしで進めてよい。Anki には 1 枚も入らない</span></p>
+          <p class="band-label">branch <span>— 承認なしで進んでよい。Anki には 1 枚も入らない</span></p>
           <ol class="track">
-            <li><span class="n">1</span><div><b>デッキの特定</b><p>今日はどのデッキの話か決める。決まらないと「入れる基準」が決まらず質問が散る。該当デッキが無ければ <code>/anki-initialize</code> へ。</p></div></li>
-            <li><span class="n">2</span><div><b>振り返り（掘る）</b><p>そのデッキの方針に沿って問い詰める。一度に一問。5〜15 往復。</p></div></li>
-            <li><span class="n">3</span><div><b>カード候補</b><p>5〜10 枚を提案する。ユーザーが口にした表現をそのまま使う。</p></div></li>
-            <li><span class="n">4</span><div><b>staging ブランチで作成・コミット</b><p><code>ankikit stage</code> → <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> に書く → <code>lint</code> → コミット。</p></div></li>
+            <li><span class="n">1</span><div><b>デッキを決める</b><p>今日はどのデッキの話か。ここが決まらないと「入れる基準」が決まらず、質問が散る。該当が無ければ <code>/anki-initialize</code> へ。</p></div></li>
+            <li><span class="n">2</span><div><b>振り返る</b><p>そのデッキの方針に沿って、一度に一問ずつ問われる。5〜15 往復。</p></div></li>
+            <li><span class="n">3</span><div><b>カード候補を見る</b><p>5〜10 枚が提示される。要らないものはここで落とす。</p></div></li>
+            <li><span class="n">4</span><div><b>ブランチに書いてコミット</b><p><code>stage</code> → <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> → <code>lint</code> → コミット。</p></div></li>
           </ol>
         </div>
 
@@ -370,409 +428,126 @@ details[open] summary{border-bottom:1px solid var(--line)}
           <p class="band-label">main <span>— push が読むのはここだけ</span></p>
           <ol class="track">
             <li><span class="n">5</span><div><b>push</b><p><code>uv run ankikit push --deck &lt;slug&gt;</code>。「追加 N / 更新 M」が結果。</p></div></li>
-            <li><span class="n">6</span><div><b>Anki → AnkiWeb → スマホ</b><p>PC 版 Anki に入り、同期でスマホに届く。</p></div></li>
+            <li><span class="n">6</span><div><b>Anki → AnkiWeb → スマホ</b><p>PC 版 Anki に入る。同期するとスマホに届く。</p></div></li>
           </ol>
         </div>
+      </div>
+
+      <div class="judge" style="margin-top:22px">
+        <div class="judge--in"><h4>あなたがやること</h4><ul>
+          <li>質問に答える（観点を自分で列挙しなくていい）</li>
+          <li>カード候補の取捨を決める</li>
+          <li><b>マージしていいか答える</b> — 承認はここだけ</li>
+        </ul></div>
+        <div class="judge--out"><h4>スキルがやること</h4><ul>
+          <li>質問を出す・掘る</li>
+          <li>カードを書き、lint し、ブランチにコミットする</li>
+          <li>承認後に <code>approve</code> と <code>push</code> を叩く</li>
+        </ul></div>
       </div>
 
       <p class="note note--warn" style="margin-top:20px">手で書きたいときは <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> に直接足して、同じくマージしてから <code>uv run ankikit push</code>。<b>経路が違っても承認ラインは同じ。</b></p>
     </section>
 
-    <!-- ══ セットアップ ══ -->
-    <section id="setup" data-title="セットアップ">
-      <h2>セットアップ</h2>
-      <p class="prose"><b>リポジトリは 2 つに分かれている。</b> 道具は何度でも配れるが、カードはあなただけのもの。git の履歴は後から消せないので、混ぜない。</p>
+    <!-- ══ スキル ══ -->
+    <section id="skills" data-title="2 つのスキル">
+      <span class="eyebrow">skill</span>
+      <h2>2 つのスキル</h2>
+      <p class="lede">どちらも「対話 → カード → ブランチ → 承認 → push」で、違うのは<b>何を掘るか</b>だけ。呼び出したあとの主導権は向こうにあるので、<b>ここは「何をされるか」だけ書く</b>。細かい振る舞いは <code>src/ankikit/skills/&lt;name&gt;/SKILL.md</code> が正。</p>
 
-      <div class="tw" style="margin-top:18px"><table>
-        <thead><tr><th></th><th>public <code>ankikit</code></th><th>private <code>anki-decks</code></th></tr></thead>
+      <div class="tw" style="margin-top:22px"><table>
+        <thead><tr><th></th><th><code>/anki-initialize</code></th><th><code>/anki-grill</code></th></tr></thead>
         <tbody>
-          <tr><td class="k">役割</td><td>道具そのもの</td><td>あなたの記憶</td></tr>
-          <tr><td class="k">中身</td><td><code>src/ankikit/</code> <code>tests/</code> <code>docs/</code> <code>decks/README.md</code>（記法の仕様）</td><td><code>decks/&lt;slug&gt;/</code>（カード本体） <code>anki.toml</code> <code>.claude/skills/</code></td></tr>
-          <tr><td class="k">触る頻度</td><td>たまに（道具を直すとき）</td><td>毎日（振り返り）</td></tr>
+          <tr><td class="k">いつ</td><td>新しいデッキを始めるとき（1 デッキ 1 回）</td><td>学習した日の終わりに毎回</td></tr>
+          <tr><td class="k">掘る対象</td><td>まだ何も起きていない領域。<b>知らないことの発見</b></td><td>今日あったこと。<b>詰まった・間違えた・驚いた</b></td></tr>
+          <tr><td class="k">聞かれ方</td><td>15〜25 個の論点を口頭でテストされる</td><td>今日やったことを一問ずつ掘られる</td></tr>
+          <tr><td class="k">カードになるもの</td><td><b>答えられなかったものだけ</b></td><td>詰まった事実・判断の根拠</td></tr>
+          <tr><td class="k">裏面を書くのは</td><td><b>モデル</b>（このスキルだけの例外。1 枚ずつ正しさを確認される）</td><td>あなたの言葉をそのまま使う</td></tr>
+          <tr><td class="k">枚数</td><td>10〜20 枚 ＋ デッキ README</td><td>5〜10 枚</td></tr>
         </tbody>
       </table></div>
 
-      <p class="note" style="margin-top:16px">道具は <code>uv add</code> で入れる。<b>カード側で <code>uv run ankikit ...</code> と打つ形は変わらない。</b> <code>config.py</code> の <code>find_repo_root()</code> がカレントから上へ <code>anki.toml</code> / <code>decks/</code> を探すので、カード側のリポジトリに居れば環境変数は要らない。</p>
-
-      <ol class="steps" style="margin-top:30px">
-        <li><span class="step-n">1</span><div class="step-b">
-          <h3>PC 版 Anki に AnkiConnect を入れる</h3>
-          <p>アドオンコード <code>2055492159</code>。<a href="https://ankiweb.net/shared/info/2055492159">AnkiWeb のアドオンページ</a>から。</p>
-        </div></li>
-        <li><span class="step-n">2</span><div class="step-b">
-          <h3>カード用のリポジトリを作る</h3>
-          <div class="cmd">mkdir ~/anki-decks &amp;&amp; cd ~/anki-decks
-git init
-uv init --bare
-uv add "ankikit @ git+ssh://git@github.com/Sato0123/ankikit"</div>
-          <p class="note">道具を直しながら使うなら <code>[tool.uv.sources]</code> に <code>ankikit = { path = "../Anki", editable = true }</code> と書く。直したそばから反映される。</p>
-        </div></li>
-        <li><span class="step-n">3</span><div class="step-b">
-          <h3>スキルを配置する</h3>
-          <div class="cmd">uv run ankikit install</div>
-          <p><code>/anki-grill</code> と <code>/anki-initialize</code> が <code>.claude/skills/</code> に入る。スキルの正はパッケージの中（<code>src/ankikit/skills/</code>）なので、<b>道具を更新したら <code>install</code> を叩き直すと最新になる</b>。</p>
-          <div class="tw"><table>
-            <thead><tr><th>コマンド</th><th>意味</th></tr></thead>
-            <tbody>
-              <tr><td class="k"><code>ankikit install</code></td><td>配置する。既にあって内容が同じなら何もしない</td></tr>
-              <tr><td class="k"><code>ankikit install --list</code></td><td>何が入るかだけ見る</td></tr>
-              <tr><td class="k"><code>ankikit install --force</code></td><td>手で直したスキルも上書きする</td></tr>
-            </tbody>
-          </table></div>
-          <p class="note note--warn">手で直したスキルは <code>--force</code> が無ければ<b>上書きされない</b>。意図せず自分の変更が消えないようにしてある。</p>
-        </div></li>
-        <li><span class="step-n">4</span><div class="step-b">
-          <h3>接続とノートタイプ名を確認する</h3>
-          <div class="cmd">uv run ankikit doctor</div>
-          <p class="note">ノートタイプ名は Anki の UI 言語や導入経緯で変わる。NG が出たら <code>anki.toml</code> の <code>[note_types]</code> を直す。この環境の実測値は basic=<code>基本</code>［表面 / 裏面］、cloze=<code>穴埋め問題</code>［Text / 裏面追記］。</p>
-        </div></li>
-        <li><span class="step-n">5</span><div class="step-b">
-          <h3>最初のデッキを立ち上げる</h3>
-          <p><code>/anki-initialize</code> を呼ぶ。方針と最初の 10〜20 枚までまとめて作る。</p>
-        </div></li>
-      </ol>
-
-      <p class="note note--warn" style="margin-top:22px"><b>場所を間違えると黙って 0 件にはならない。</b> <code>decks/</code> が見つからないところで叩くと、どこを見たかを言ってエラーで止まる。</p>
-    </section>
-
-    <!-- ══ grill ══ -->
-    <section id="grill" data-title="/anki-grill 日々の振り返り">
-      <span class="eyebrow">skill</span>
-      <h2>/anki-grill — 学習した日の終わりに毎回</h2>
-      <p class="lede">ユーザーはスマホで 1 枚ずつ登録したくないし、観点を自分で列挙するのも面倒だと思っている。<b>質問はこちらが出す。</b></p>
-
-      <h3 style="margin-top:30px">0. 下ごしらえ（黙ってやる。要約して見せない）</h3>
+      <h3>あなたが答えを持っておくとよいこと</h3>
+      <p class="prose">どちらのスキルも、答えに詰まると止まる質問がいくつかある。先に考えておくと速い。</p>
       <ul class="plain">
-        <li><code>decks/README.md</code> — 記法とコマンド</li>
-        <li><code>decks/*/README.md</code> — 各デッキの目的・入れる基準・入れない基準・<code>## 前提</code></li>
-        <li>直近数日の <code>decks/*/cards/*.md</code> — 重複回避と「昨日のあれどうなった？」用</li>
-        <li><code>uv run ankikit decks</code> — 未マージのカードが残っていたら、先に片付けるか聞く</li>
+        <li><b>「今日はどのデッキ？」</b> — 話が複数デッキに散ると、デッキごとにブランチが分かれて往復が増える。1 セッション 1 デッキが基本。</li>
+        <li><b>「それ、明日どこで使う？」</b> — 答えられないものはカードにならない。手を動かしていない知識はここで落ちる。</li>
+        <li><b>「じゃあ説明して。3 行で」</b> — 「知ってる」には必ず説明を求められる。<b>詰まった場所がそのまま最良のカードになる</b>ので、取り繕わないほうが得。</li>
+        <li><b>「これで合ってる？」</b>（initialize のみ）— モデルが書いた裏面の確認。<b>判断できないものは「分からない」と言えば作られない</b>。間違ったまま何か月も復習するのが一番損。</li>
       </ul>
 
-      <ol class="steps" style="margin-top:34px">
-        <li><span class="step-n">1</span><div class="step-b">
-          <h3>デッキの特定 — 振り返りより先</h3>
-          <p>既にデッキがあるなら、slug と目的を 1 行ずつ並べて選ばせる。</p>
-          <div class="quote">今日はどれ？<br>・<code>english-vocab</code> — 会議で出た語彙<br>・<code>sre</code> — 障害対応で詰まったこと</div>
-          <p class="note">どのデッキにも当てはまらなければ新しいデッキを提案し、<b>作成は <code>/anki-initialize</code> に任せる</b>。ここで <code>ankikit new</code> を叩いて README を片手間に埋めない（後の全セッションの判断基準になる場所を雑に作らない）。</p>
-          <p class="note"><b>1 セッション 1 デッキが基本。</b> 話が複数デッキに散ったら、デッキごとにブランチを分けて 4〜6 を繰り返す。</p>
-        </div></li>
-
-        <li><span class="step-n">2</span><div class="step-b">
-          <h3>振り返り（掘る）</h3>
-          <p>デッキの「入れる基準」を頭に置いて掘り始める。最初の一言は短く。</p>
-          <div class="quote">今日 <code>sre</code> まわりで何をやった？ 一番時間を使ったところから。</div>
-
-          <h4>鉄則</h4>
-          <ul class="plain">
-            <li><b>一度に一問だけ。</b> まとめて 3 つ聞かない。</li>
-            <li><b>答えを要約して返さない。</b> 相槌もいらない。次の質問に進む。</li>
-            <li><b>抽象語は許さない。</b>「うまくいった」→ 何が、どうなって、前と何が違う？／「理解した」→ じゃあ説明して。3 行で。／「難しかった」→ どこで手が止まった？ 何分？ 最終的に何を見て解決した？</li>
-            <li><b>「知ってる」には説明させる。</b> 説明が詰まったら、そこが最高のカードになる。</li>
-            <li><b>詰まった / 間違えた / 驚いた を最優先。</b> スムーズにできたことは記憶する価値が低い。</li>
-            <li>手を動かしていない知識は、<b>使う場面</b>を聞いてから判断する。答えられないならカードにしない。</li>
-            <li>5〜15 往復。</li>
-          </ul>
-
-          <h4>切り口のストック（一本道が尽きたら）</h4>
-          <div class="tw"><table>
-            <thead><tr><th>切り口</th><th>問い</th></tr></thead>
-            <tbody>
-              <tr><td class="k">失敗</td><td>今日エラーになった / 想定と違った瞬間は？ 原因は結局なんだった？</td></tr>
-              <tr><td class="k">判断</td><td>選ばなかった選択肢は？ なぜそっちを捨てた？</td></tr>
-              <tr><td class="k">境界</td><td>それが<b>使えない</b>のはどういうとき？ 例外は？</td></tr>
-              <tr><td class="k">区別</td><td>似てるけど違うものは？ 何が違う？</td></tr>
-              <tr><td class="k">再現</td><td>明日同じことをゼロからやれる？ どこで詰まりそう？</td></tr>
-              <tr><td class="k">由来</td><td>なぜそういう仕様 / 語法になっている？</td></tr>
-              <tr><td class="k">昨日</td><td>前回のカードで、今日実際に出てきたものは？</td></tr>
-            </tbody>
-          </table></div>
-
-          <h4>やめる合図</h4>
-          <ul class="plain">
-            <li>ユーザーが「もういい」「それくらい」と言った</li>
-            <li>3 往復続けて新しい事実が出てこない</li>
-            <li>カード候補が 10 枚を超えた（1 セッション 5〜10 枚が適量）</li>
-          </ul>
-        </div></li>
-
-        <li><span class="step-n">3</span><div class="step-b">
-          <h3>カード候補を出す</h3>
-          <p>会話全体から拾う。<b>ユーザーが口にした表現をできるだけそのまま使う</b>（自分の言葉のほうが思い出せる）。</p>
-          <div class="judge">
-            <div class="judge--in"><h4>入れる</h4><ul>
-              <li>今日詰まった・間違えた事実</li>
-              <li>説明を求めたら詰まったこと</li>
-              <li>「へえ」と言った箇所</li>
-              <li>判断の根拠（なぜ A ではなく B か）</li>
-            </ul></div>
-            <div class="judge--out"><h4>入れない</h4><ul>
-              <li>デッキ README の「前提」に既にあること</li>
-              <li>調べれば 10 秒で出るリファレンス</li>
-              <li>一覧・手順の丸暗記</li>
-              <li>文脈のない用語定義</li>
-              <li>「明日使う場面」が答えられなかったもの</li>
-              <li>既存カードと同じ表面</li>
-            </ul></div>
-          </div>
-
-          <h4>カードの形</h4>
-          <ul class="plain">
-            <li><b>1 カード 1 事実。</b>「かつ」「および」が入ったら分割する。</li>
-            <li><b>表面は想起のきっかけ。</b> 用語ではなく、実際に遭遇する状況の形にする。</li>
-            <li><b>裏面は一文 + なぜ。</b> 理由が無いカードは忘れる。</li>
-            <li>手続きや文章の穴埋めが向くなら <code>{{c1::...}}</code> を使う。</li>
-            <li>出典メモは <code>&lt;!-- --&gt;</code> に書く（Anki には送られない）。</li>
-          </ul>
-          <div class="tw"><table>
-            <thead><tr><th></th><th>表面</th></tr></thead>
-            <tbody>
-              <tr><td class="k" style="color:var(--pending)">悪い</td><td><code>useEffect の依存配列</code></td></tr>
-              <tr><td class="k" style="color:var(--accent-ink)">良い</td><td><code>useEffect の依存配列に空配列を渡すと、いつ再実行される？</code></td></tr>
-            </tbody>
-          </table></div>
-        </div></li>
-
-        <li><span class="step-n">4</span><div class="step-b">
-          <h3>ブランチで作成・コミット</h3>
-          <p>ここまでは承認なしで進めてよい。ブランチの中身は Anki に影響しない。</p>
-          <div class="cmd">uv run ankikit stage &lt;slug&gt;      <span class="c"># staging/&lt;slug&gt; に切り替え（無ければ main から作る）</span>
-<span class="c"># decks/&lt;slug&gt;/cards/&lt;YYYY-MM-DD&gt;.md に書く（既にあれば末尾に追記。既存カードは触らない）</span>
-uv run ankikit lint --deck &lt;slug&gt;
-git add decks/&lt;slug&gt; &amp;&amp; git commit -m "cards(&lt;slug&gt;): &lt;YYYY-MM-DD&gt; N枚"</div>
-          <p class="note">エラー 0 件を確認してからコミットする。<b><code>decks/</code> 配下だけを add する。</b></p>
-        </div></li>
-
-        <li><span class="step-n">5</span><div class="step-b">
-          <h3>承認（main へマージ）</h3>
-          <div class="cmd">git diff main...HEAD -- decks/</div>
-          <p>差分を見せて、承認を求める。</p>
-          <div class="quote"><code>staging/&lt;slug&gt;</code> に N 枚コミットした。main にマージすると Anki に入る。マージしていい？</div>
-          <p class="note note--gate"><b>明示的に承認されるまでマージしない。</b>「消したい」「直したい」と言われたら、ブランチ上で直してコミットし直し、もう一度聞く。</p>
-          <div class="cmd">uv run ankikit approve &lt;slug&gt;   <span class="c"># staging/&lt;slug&gt; を main に --no-ff マージし、main に切り替わる</span></div>
-        </div></li>
-
-        <li><span class="step-n">6</span><div class="step-b">
-          <h3>push</h3>
-          <div class="cmd">uv run ankikit push --deck &lt;slug&gt;</div>
-          <ul class="plain">
-            <li>「追加 N / 更新 M」の行を<b>そのまま報告する</b>。</li>
-            <li>「追加 0」なら、まだマージされていない。<code>uv run ankikit pending</code> で確認する。</li>
-            <li>Anki が起動していないと <code>AnkiConnect に接続できません</code> で落ちる。そのときは<b>カードは main にマージ済みで無事</b>だと伝え、「Anki を起動して <code>uv run ankikit push</code>」と案内する。<b>ここで作業を巻き戻さない。</b></li>
-            <li>ノートタイプ名で失敗したら <code>uv run ankikit doctor</code> の結果を見せる。</li>
-          </ul>
-          <p class="note">最後は 2〜3 行で締める。今日の枚数、どのデッキに入ったか、次に掘ると良さそうな残りの論点。長い総括は要らない。</p>
-        </div></li>
-      </ol>
-
-      <div class="never" style="margin-top:34px">
-        <h4>やらないこと</h4>
-        <ul>
-          <li>デッキを決めずに掘り始める</li>
-          <li>質問を飛ばしていきなりカードを作る</li>
-          <li>承認なしで main にマージする</li>
-          <li><code>--worktree</code> で未承認のカードを push する</li>
-          <li>1 セッションで 15 枚以上作る</li>
-          <li>ユーザーが言っていない知識を「補足」として勝手にカードにする</li>
-          <li><code>decks/</code> 以外のファイルを一緒にコミットする</li>
-        </ul>
-      </div>
-    </section>
-
-    <!-- ══ initialize ══ -->
-    <section id="initialize" data-title="/anki-initialize デッキの立ち上げ">
-      <span class="eyebrow">skill</span>
-      <h2>/anki-initialize — 新しいデッキを立ち上げる（1 デッキ 1 回）</h2>
-      <p class="lede">grill は「今日あったこと」を掘るが、initialize は<b>まだ何も起きていない状態に骨組みを置く</b>。だから<b>このスキルに限り、モデル側が論点と裏面を持ち込む</b>。</p>
-
-      <div class="judge" style="margin-top:20px">
-        <div class="judge--in"><h4>その代わりの歯止め</h4><ul>
-          <li>カードにするのは<b>ユーザーが答えられなかったものだけ</b></li>
-          <li>裏面はモデルが書くが、<b>1 枚ずつ正しさを確認させる</b></li>
+      <h3>何がカードになるか</h3>
+      <div class="judge">
+        <div class="judge--in"><h4>入れる</h4><ul>
+          <li>今日詰まった・間違えた事実</li>
+          <li>説明を求められて詰まったこと</li>
+          <li>「へえ」と言った箇所</li>
+          <li>判断の根拠（なぜ A ではなく B か）</li>
+          <li><b>よどみなく説明できたこと</b> — ただし <code>known:</code> 付きの<a href="#known-cards">既習カード</a>として</li>
         </ul></div>
-        <div class="judge--out"><h4>承認境界は grill と同じ</h4><ul>
-          <li>main にマージされるまで Anki には 1 枚も入らない</li>
+        <div class="judge--out"><h4>入れない</h4><ul>
+          <li>調べれば 10 秒で出るリファレンス</li>
+          <li>一覧・手順の丸暗記、文脈のない用語定義</li>
+          <li>「明日使う場面」を答えられなかったもの</li>
+          <li>会話に一度も出てこなかった論点</li>
+          <li>既存カードと同じ表面</li>
         </ul></div>
       </div>
+      <p class="note"><b>答えられたことも捨てない。</b> 今日答えられたことは半年後には忘れている。詰まったものは<b>明日から出る新規カード</b>、答えられたものは<b>理解度に応じて何日か先から出る既習カード</b>に分けて入る。</p>
 
-      <h3 style="margin-top:34px">0. 下ごしらえ（黙ってやる）</h3>
-      <ul class="plain">
-        <li><code>decks/README.md</code> — 記法とコマンド</li>
-        <li><code>decks/*/README.md</code> を<b>全部</b> — 似た目的のデッキがあれば、新設せず<b>そこに足すこと</b>を先に提案する</li>
-        <li><code>uv run ankikit decks</code> — 未マージが残っていたら先に片付けるか聞く</li>
-      </ul>
+      <h3>途中で止めたくなったら</h3>
+      <p class="prose"><b>「もういい」と言えば止まる。</b> それ以外に、向こうから切り上げる合図もある。</p>
+      <div class="tw"><table>
+        <thead><tr><th>起きていること</th><th>意味</th></tr></thead>
+        <tbody>
+          <tr><td class="k">3 往復、新しい事実が出ない</td><td>その日の鉱脈が尽きた。切り上げてよい</td></tr>
+          <tr><td class="k">3 問続けて即答できた</td><td>論点が浅い。スコープを一段上げる合図（initialize）</td></tr>
+          <tr><td class="k">3 問続けて「知らない」</td><td>深すぎる。初期化より先に学習が要る</td></tr>
+          <tr><td class="k">候補が 10〜20 枚を超えた</td><td>1 セッションの適量を超えている。残りは次回へ</td></tr>
+        </tbody>
+      </table></div>
 
-      <ol class="steps" style="margin-top:34px">
-        <li><span class="step-n">1</span><div class="step-b">
-          <h3>スコープの確定</h3>
-          <p>デッキは「<b>入れる基準が書ける粒度</b>」でだけ切る。ここが決まらないと以後の全セッションの判断がぶれる。1 問ずつ聞く。</p>
-          <div class="quote">何を覚えたい？ 具体的に。</div>
-          <div class="quote">なぜ今？ 何をしていて必要になった？</div>
-          <div class="quote">3 か月後、何ができていれば「作ってよかった」と言える？</div>
-          <div class="tw"><table>
-            <thead><tr><th>粒度</th><th>例</th><th>症状</th></tr></thead>
-            <tbody>
-              <tr><td class="k" style="color:var(--pending)">広すぎ</td><td><code>プログラミング</code> <code>英語</code></td><td>入れる基準が「役に立つこと」にしかならない。切り直す</td></tr>
-              <tr><td class="k" style="color:var(--accent-ink)">ちょうど</td><td><code>react-rendering</code> <code>sre-oncall</code> <code>meeting-english</code></td><td>入れない基準を具体例で書ける</td></tr>
-              <tr><td class="k" style="color:var(--pending)">狭すぎ</td><td><code>useEffect の依存配列</code></td><td>10 枚で尽きる。一段上げる</td></tr>
-            </tbody>
-          </table></div>
-          <p>決まったら slug（kebab-case）と Anki 上のデッキ名（<code>親::子</code>）を提案し、確認を取ってから作る。</p>
-          <div class="cmd">uv run ankikit new &lt;slug&gt; --anki-deck "親::子"</div>
-          <p class="note note--warn"><b><code>new</code> を先に実行すること。</b> <code>ankikit stage</code> は <code>decks/&lt;slug&gt;/</code> が存在しないと失敗する。</p>
-        </div></li>
-
-        <li><span class="step-n">2</span><div class="step-b">
-          <h3>方針を仮置きする</h3>
-          <p><b>README をここで全部埋めない。</b> 問診の軸になる分だけ決める。</p>
-          <ul class="plain">
-            <li><b>目的</b> — 1〜2 文。1 で聞いた「3 か月後」をそのまま使う</li>
-            <li><b>スコープ外</b> — 今回は扱わないもの（例: <code>sre-oncall</code> なら「Kubernetes の内部実装は扱わない」）</li>
-          </ul>
-          <p class="note">入れる基準・入れない基準は <b>5 で確定させる</b>。今書くと、実際に何を捨てたかを知らないまま「重要なことを入れる」のような使えない基準になる。</p>
-        </div></li>
-
-        <li><span class="step-n">3</span><div class="step-b">
-          <h3>棚卸し面談（このスキルの本体）</h3>
-          <p><b>目的は「知らないことの発見」であって、教えることではない。</b> ここで解説を始めない。</p>
-          <ol class="plain">
-            <li>スコープから<b>論点を 15〜25 個立てる</b>。<b>リストはユーザーに見せない</b>（見せると自己申告になり、一番危険な「知っているつもり」が素通りする）。</li>
-            <li><b>1 問ずつ口頭でテストする。</b> まとめて 3 つ出さない。</li>
-            <li>答えを聞いて 3 つに仕分ける。</li>
-          </ol>
-          <div class="tw"><table>
-            <thead><tr><th>反応</th><th>扱い</th></tr></thead>
-            <tbody>
-              <tr><td class="k">即答できた</td><td><b>捨てる。</b> 5 の「前提」に記録する</td></tr>
-              <tr><td class="k">説明が詰まった・曖昧</td><td><b>カード候補</b>（最良の候補）</td></tr>
-              <tr><td class="k">「知らない」と即答</td><td>カード候補。ただしスコープ内かを確認してから</td></tr>
-            </tbody>
-          </table></div>
-          <p class="note"><b>「知ってる」には必ず説明させる。</b> 用語を言えるのは知っているうちに入らない。→「じゃあ説明して。3 行で。」</p>
-
-          <details><summary>論点の立て方（ストック）</summary><div class="d-body">
-            <ul>
-              <li><b>地雷</b>: この分野を始めた人が最初の 1 か月で必ず踏む間違いは？</li>
-              <li><b>区別</b>: 似ていて混同されるペアは？ 何が違う？</li>
-              <li><b>境界</b>: それが使えないのはどういうときか。例外は？</li>
-              <li><b>既定値</b>: 何も指定しないとどうなるか</li>
-              <li><b>由来</b>: なぜそういう仕様 / 語法になっているか</li>
-              <li><b>手順の落とし穴</b>: 順番を間違えると壊れるところ</li>
-              <li><b>本人固有</b>: ユーザーの環境・仕事で、それが実際に出てくる形は？</li>
-            </ul>
-            <p class="note"><b>本人固有の論点を必ず混ぜる。</b> 一般論だけで組むと教科書のコピーになり、思い出すきっかけにならない。</p>
-          </div></details>
-          <details><summary>やめる合図</summary><div class="d-body">
-            <ul>
-              <li>カード候補が 20 に達した</li>
-              <li><b>3 問続けて即答された</b> → 論点が浅い。一段深くするか、スコープ自体を上げる</li>
-              <li>3 問続けて「まったく知らない」 → 深すぎる。初期化ではなく学習が先。段を下げる</li>
-              <li>ユーザーが「もういい」と言った</li>
-            </ul>
-          </div></details>
-        </div></li>
-
-        <li><span class="step-n">4</span><div class="step-b">
-          <h3>カード化</h3>
-          <p><b>答えられなかった問いだけ</b>をカードにする。即答できたものを「念のため」入れない。</p>
-          <ul class="plain">
-            <li><b>表面</b>はユーザーが詰まった問いの形をそのまま使う</li>
-            <li><b>裏面はモデルが書く。これはこのスキルだけの例外。</b> 一文 ＋ なぜ</li>
-            <li>1 カード 1 事実</li>
-          </ul>
-          <h4>裏面の確認（省略しない）</h4>
-          <div class="quote">これで合ってる？ 違ってたら直して。</div>
-          <ul class="plain">
-            <li>ユーザーが自分の環境の言葉で言い直したら、<b>その言い方を採用する</b></li>
-            <li><b>「正しいか判断できない」と言われたカードは作らない。</b> 正しさを確認できないカードは毒で、間違ったまま何か月も復習することになる。捨てるか、調べてから次のセッションに回す</li>
-          </ul>
-          <p>書く場所は <code>decks/&lt;slug&gt;/cards/&lt;YYYY-MM-DD&gt;.md</code>。冒頭のフロントマターに出所を残すと、初期化のカードだけを Anki 側で後から絞り込める。</p>
-          <div class="cmd">---
-tags: [seed]
----</div>
-          <p>10〜20 枚。番号付きで表面と裏面をそのまま見せる。長い解説は要らない。</p>
-        </div></li>
-
-        <li><span class="step-n">5</span><div class="step-b">
-          <h3>方針を確定させる</h3>
-          <p>ここまでで「実際に何が弱かったか」が分かっている。<code>decks/&lt;slug&gt;/README.md</code> を書き切る。</p>
-          <ul class="plain">
-            <li><b>入れる基準 / 入れない基準は、このセッションで実際に拾った例・捨てた例を引いて書く。</b><br>悪い:「重要なことを入れる」／良い:「即答できずに詰まった問いだけ。用語の定義だけのカードは入れない（今日 3 問捨てた）」</li>
-            <li><b><code>## 前提（既に押さえていること）</code></b> に、3 で即答できた論点を箇条書きで残す。以後の <code>/anki-grill</code> がこれを読み、<b>同じことを二度と聞かない・カードにしない</b>。</li>
-            <li><b>運用メモ</b>: 1 日の新規枚数の目安、次に掘る予定の領域</li>
-          </ul>
-        </div></li>
-
-        <li><span class="step-n">6</span><div class="step-b">
-          <h3>ブランチでコミット（方針とカードを分ける）</h3>
-          <div class="cmd">uv run ankikit stage &lt;slug&gt;
-uv run ankikit lint --deck &lt;slug&gt;
-
-git add decks/&lt;slug&gt;/README.md &amp;&amp; git commit -m "deck(&lt;slug&gt;): 方針"
-git add decks/&lt;slug&gt;/cards   &amp;&amp; git commit -m "cards(&lt;slug&gt;): &lt;YYYY-MM-DD&gt; N枚（初期）"</div>
-          <p class="note">分けておくと、承認時に「方針」と「カード」を別々に確認できる。</p>
-        </div></li>
-
-        <li><span class="step-n">7</span><div class="step-b">
-          <h3>承認（main へマージ）</h3>
-          <div class="cmd">git diff main...HEAD -- decks/</div>
-          <div class="quote"><code>staging/&lt;slug&gt;</code> に方針と N 枚をコミットした。main にマージすると Anki に入る。マージしていい？</div>
-          <p class="note note--gate">「この枚は要らない」と言われたら、ブランチ上で消してコミットし直し、もう一度聞く。承認されたら <code>uv run ankikit approve &lt;slug&gt;</code>。</p>
-        </div></li>
-
-        <li><span class="step-n">8</span><div class="step-b">
-          <h3>push</h3>
-          <div class="cmd">uv run ankikit push --deck &lt;slug&gt;</div>
-          <p>最後は 2〜3 行。デッキ名、枚数、次に掘ると良さそうな領域。総括は要らない。</p>
-        </div></li>
-      </ol>
-
-      <div class="never" style="margin-top:34px">
-        <h4>やらないこと</h4>
+      <details style="margin-top:22px"><summary>スキル側に課してある制約（デバッグ用）</summary><div class="d-body">
+        <p>スキルが妙な動きをしたときに、何が破られたかを見るための一覧。</p>
         <ul>
-          <li>スコープを決めずに論点を出す</li>
-          <li>論点リストを見せて「知ってる / 知らない」を自己申告させる</li>
-          <li>ユーザーが即答できたことをカードにする</li>
-          <li>ユーザーが正しさを確認できなかった裏面を残す</li>
-          <li>棚卸しの途中で解説を始める（診断であって授業ではない）</li>
-          <li>1 回の初期化で 20 枚を超える</li>
-          <li>方針を書かずにカードだけ作る</li>
-          <li>承認なしで main にマージする</li>
-          <li><code>--worktree</code> で未承認のカードを push する</li>
+          <li>デッキを決めずに掘り始めない／質問を飛ばしていきなりカードを作らない</li>
+          <li><b>承認なしで main にマージしない</b>／<code>--worktree</code> で未承認のカードを push しない</li>
+          <li>ユーザーが言っていない知識を「補足」として勝手にカードにしない</li>
+          <li><code>decks/</code> 以外のファイルを一緒にコミットしない</li>
+          <li>1 セッション 15 枚（初期化は 20 枚）を超えない</li>
+          <li>答えを要約して返さない・相槌を打たない・一度に一問だけ</li>
+          <li>initialize: 論点リストを見せて自己申告させない（「知っているつもり」が素通りするため）／即答できたことをカードにしない／棚卸しの途中で解説を始めない</li>
+          <li>initialize: 方針を書かずにカードだけ作らない。<code>ankikit new</code> は <code>stage</code> より先</li>
         </ul>
-      </div>
+      </div></details>
+      <details><summary>デッキの粒度（initialize の要）</summary><div class="d-body">
+        <p>デッキは「<b>入れる基準が書ける粒度</b>」でだけ切る。ここが決まらないと、以後の全セッションの判断がぶれる。</p>
+        <div class="tw"><table>
+          <thead><tr><th>粒度</th><th>例</th><th>症状</th></tr></thead>
+          <tbody>
+            <tr><td class="k" style="color:var(--pending)">広すぎ</td><td><code>プログラミング</code> <code>英語</code></td><td>入れる基準が「役に立つこと」にしかならない</td></tr>
+            <tr><td class="k" style="color:var(--accent-ink)">ちょうど</td><td><code>react-rendering</code> <code>sre-oncall</code> <code>meeting-english</code></td><td>入れない基準を具体例で書ける</td></tr>
+            <tr><td class="k" style="color:var(--pending)">狭すぎ</td><td><code>useEffect の依存配列</code></td><td>10 枚で尽きる。一段上げる</td></tr>
+          </tbody>
+        </table></div>
+      </div></details>
     </section>
 
-        <!-- ══ カードの書き方 ══ -->
+    <!-- ══ カードの書き方 ══ -->
     <section id="cards" data-title="カードの書き方">
       <h2>カードの書き方</h2>
-      <p class="prose">デッキ 1 つ = ディレクトリ 1 つ。ここが<b>カードの正</b>で、Anki には片方向に流し込む。Anki 側で直接編集した内容は戻ってこないので、直したいときはこのファイルを直して push し直す。</p>
+      <p class="prose">デッキ 1 つ = ディレクトリ 1 つ。ここが<b>カードの正</b>で、Anki には片方向に流し込む。</p>
 
       <div class="tree" style="margin-top:20px">decks/
   <b>english-vocab/</b>
     <b>README.md</b>            ← このデッキの方針（フロントマターが設定になる）
     cards/
       <b>2026-08-20.md</b>      ← その日に足したカード
-      2026-08-21.md</div>
+      2026-08-21.md
+    notes/
+      2026-08-20-冠詞.md      ← 学びの散文メモ。Anki には送られない</div>
 
-      <h3>デッキ README.md</h3>
-      <p class="prose">フロントマターが設定、本文が方針。方針の本文は <code>/anki-grill</code> が読んで「何をカードにするか」を判断する材料になるので、<b>入れる基準と入れない基準は具体的に</b>書く。</p>
-      <div class="cmd">---
-anki_deck: "英語::語彙"   <span class="c"># Anki 上の実デッキ名。:: で階層。省略時はディレクトリ名</span>
-note_type: basic          <span class="c"># basic | cloze（カード側に {{c1::}} があれば自動で cloze）</span>
-tags: [english]           <span class="c"># このデッキの全カードに付くタグ</span>
----
-
-## 目的
-## 入れる基準
-## 入れない基準
-## 前提（既に押さえていること）
-## カードの作り方
-## 運用メモ</div>
-      <p class="note"><code>## 前提</code> は <code>/anki-initialize</code> の棚卸しで<b>即答できた</b>論点を残す場所。<code>/anki-grill</code> がこれを読んで、既に押さえていることを二度と聞かない・カードにしないための基準になる。</p>
-      <p class="note note--warn">雛形は <code>uv run ankikit new &lt;slug&gt; --anki-deck "英語::語彙"</code> で作れるが、<b>新しいデッキは <code>/anki-initialize</code> から始めるのが本筋</b>（方針と最初の 10〜20 枚をまとめて作る）。</p>
-
-      <h3>カードファイル（cards/YYYY-MM-DD.md）</h3>
+      <h3>カードファイル <code>cards/YYYY-MM-DD.md</code></h3>
       <div class="cmd">---
 tags: [meeting]          <span class="c"># このファイル内の全カードに付くタグ（省略可）</span>
 ---
@@ -783,35 +558,97 @@ A: 後で改めて議論する
 
 ## {{c1::defer}} to someone
 A: 人の判断に従う / 一任する
-tags: nuance</div>
+tags: nuance
+
+## Q: table a proposal
+A: 提案を棚上げにする（英と米で逆の意味になる）
+known: 3                 <span class="c"># 既に答えられた ＝ 12 日後に初めて出る</span></div>
 
       <div class="tw" style="margin-top:16px"><table>
         <thead><tr><th>記法</th><th>意味</th></tr></thead>
         <tbody>
-          <tr><td class="k"><code>## </code> 行</td><td>カードの開始。行頭の <code>Q:</code> は飾りなので取り除かれる</td></tr>
+          <tr><td class="k"><code>## </code> 行</td><td>カードの開始 ＝ 表面。行頭の <code>Q:</code> は飾りなので取り除かれる</td></tr>
           <tr><td class="k"><code>A:</code> 行</td><td>ここから裏面。次の <code>## </code> か EOF まで（複数行可）</td></tr>
           <tr><td class="k"><code>tags:</code> 行</td><td>そのカード固有のタグ。空白かカンマ区切り</td></tr>
+          <tr><td class="k"><code>known:</code> 行</td><td><b>既に答えられた</b>印（1〜4）。新規ではなく<b>復習カード</b>として入る（<a href="#known-cards">下</a>）</td></tr>
           <tr><td class="k"><code>&lt;!-- ... --&gt;</code></td><td>ファイル内のメモ。<b>Anki には送られない</b>。カードに残したいなら <code>A:</code> の本文に書く</td></tr>
-          <tr><td class="k"><code>{{c1::...}}</code></td><td>表面に含めると穴埋めカードになる</td></tr>
+          <tr><td class="k"><code>{{c1::...}}</code></td><td>表面に含めると穴埋めカードになる（ノートタイプが自動で cloze になる）</td></tr>
         </tbody>
       </table></div>
-      <p class="note">書式チェックは <code>uv run ankikit lint</code>。</p>
+      <p class="note">書式チェックは <code>uv run ankikit lint</code>。フィールドは HTML として送られるので、改行は <code>&lt;br&gt;</code> に変換される。<b>行頭の空白は落ちる。</b></p>
 
-      <h3>重複と更新</h3>
-      <p class="prose">同一カードかどうかは<b>表面のハッシュ</b>で判定し、Anki 側には <code>ankikit-uid::&lt;hash&gt;</code> タグが付く。</p>
+      <h3>良いカードの形</h3>
+      <ul class="plain">
+        <li><b>1 カード 1 事実。</b>「かつ」「および」が入ったら分割する。</li>
+        <li><b>表面は想起のきっかけ。</b> 用語ではなく、実際に遭遇する状況の形にする。</li>
+        <li><b>裏面は一文 ＋ なぜ。</b> 理由が無いカードは忘れる。</li>
+      </ul>
+      <div class="tw"><table>
+        <thead><tr><th></th><th>表面</th></tr></thead>
+        <tbody>
+          <tr><td class="k" style="color:var(--pending)">悪い</td><td><code>useEffect の依存配列</code></td></tr>
+          <tr><td class="k" style="color:var(--accent-ink)">良い</td><td><code>useEffect の依存配列に空配列を渡すと、いつ再実行される？</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="known-cards">答えられたことも忘れる — <code>known:</code></h3>
+      <p class="prose">面談で<b>即答できたことも、半年後には忘れている。</b> だからカードにする。ただし新規カードとして入れると、本当に知らなかったカードと同じ頻度で出てきて復習の枠を食う。<code>known:</code> を書くと <b>最初から「復習済み」の状態</b>で Anki に入り、指定した日数が経って初めて出てくる。</p>
+      <div class="tw" style="margin-top:14px"><table>
+        <thead><tr><th><code>known:</code></th><th>面談・振り返りでの様子</th><th>最初に出るのは</th></tr></thead>
+        <tbody>
+          <tr><td class="k">なし</td><td>答えられなかった／誤解があった</td><td><b>明日</b>（ふつうの新規カード）</td></tr>
+          <tr><td class="k"><code>1</code></td><td>答えは出たが説明が詰まった</td><td>2 日後</td></tr>
+          <tr><td class="k"><code>2</code></td><td>少し考えて答えられた</td><td>5 日後</td></tr>
+          <tr><td class="k"><code>3</code></td><td>即答できた</td><td>12 日後</td></tr>
+          <tr><td class="k"><code>4</code></td><td>毎日使っていて間違えようがない</td><td>25 日後</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">効くのは <b>Anki 側でまだ一度も出ていないカードだけ</b>。復習が始まったカードには二度と触らないので、何度 <code>push</code> しても<b>学習履歴は壊れない</b>（後から <code>known:</code> を足した場合も、まだ出ていなければ効く）。Anki には <code>known::&lt;数字&gt;</code> タグが付くので、後から絞り込める。</p>
+      <p class="note note--warn"><b>忘れたものに付けない。</b> 明日出るべきカードが 2 週間出てこなくなる。全部に付けると、ただの「出ないカードの山」になる。</p>
+
+      <h3>学びのノート <code>notes/</code></h3>
+      <p class="prose">カードは 1 枚 1 事実なので、<b>単元としての筋は残らない</b>。障害の経過、設計を変えた理由、読み返したい話は <code>decks/&lt;slug&gt;/notes/YYYY-MM-DD-&lt;topic&gt;.md</code> に散文で書く。<code>notes/</code> は Anki には送られない（<code>push</code> も <code>lint</code> も <code>cards/</code> しか読まない）。</p>
+
+      <h3>学習状況 <code>ankikit status</code></h3>
+      <div class="cmd">uv run ankikit status &lt;slug&gt;          <span class="c"># 画面に出すだけ</span>
+uv run ankikit status &lt;slug&gt; --write  <span class="c"># README の学習状況ブロックを書き換える</span></div>
+      <p class="prose">ファイル側（枚数・既習の内訳・未マージ・ノートの索引）と Anki 側（新規 / 学習中 / 復習 / 定着 / 今日出る / 忘れ直しの多いカード）をまとめる。<b>書き換えるのは <code>&lt;!-- ankikit:status --&gt;</code> マーカーの中だけ</b>なので、手で書いた方針は消えない。<b>README を開けば「ああこの単元ね」と思い出せる</b>のがねらい。</p>
+
+      <h3>デッキ <code>README.md</code></h3>
+      <p class="prose">フロントマターが設定、本文が方針。本文は <code>/anki-grill</code> が読んで「何をカードにするか」を判断する材料になるので、<b>入れる基準と入れない基準は具体例で</b>書く。</p>
+      <div class="cmd">---
+anki_deck: "英語::語彙"   <span class="c"># Anki 上の実デッキ名。:: で階層。省略時はディレクトリ名</span>
+note_type: basic          <span class="c"># basic | cloze（カードに {{c1::}} があれば自動で cloze）</span>
+tags: [english]           <span class="c"># このデッキの全カードに付くタグ</span>
+---
+
+## 目的
+## 入れる基準
+## 入れない基準
+## 要点（この単元は何だったか）
+## 前提（既に押さえていること）
+## カードの作り方
+## 運用メモ
+## 学習状況              <span class="c"># ankikit status --write が書き換える</span></div>
+      <p class="note"><code>## 要点</code> は<b>後から開いて「ああこの単元ね」と思い出すための場所</b>。5〜10 行で骨格だけ書き、詳しい話は <code>notes/</code> に回す。</p>
+      <p class="note"><code>## 前提</code> は <code>/anki-initialize</code> の棚卸しで<b>答えられた</b>論点を残す場所。以後の <code>/anki-grill</code> がこれを読み、<b>同じことを二度と聞かない</b>。ただし<b>カードとしては <code>known:</code> 付きで入っている</b>ので、忘れたころに Anki が出してくる。</p>
+      <p class="note note--warn">雛形は <code>uv run ankikit new &lt;slug&gt; --anki-deck "英語::語彙"</code> で作れるが、<b>新しいデッキは <code>/anki-initialize</code> から始めるのが本筋</b>（方針と最初の 10〜20 枚をまとめて作る）。</p>
+
+      <h3>直したいとき</h3>
+      <p class="prose">同一カードかどうかは<b>表面のハッシュ</b>で判定する（Anki 側に <code>ankikit-uid::&lt;hash&gt;</code> タグが付く）。<b>表面が ID</b>だと思えば、下の挙動はすべて素直に読める。</p>
       <div class="tw" style="margin-top:14px"><table>
         <thead><tr><th>直した場所</th><th>push したときの挙動</th></tr></thead>
         <tbody>
-          <tr><td class="k">裏面だけ</td><td>既存カードを<b>更新</b>（学習履歴は維持される）</td></tr>
+          <tr><td class="k">裏面だけ</td><td>既存カードを<b>更新</b>。<b>学習履歴は維持される</b></td></tr>
           <tr><td class="k">表面</td><td><b>別カードとして追加</b>される。古い方は Anki に残るので手で消す</td></tr>
+          <tr><td class="k">カードを削除</td><td>Anki からは<b>消えない</b>。手で消す（push は追加と更新しかしない）</td></tr>
           <tr><td class="k">同じ表面を 2 回</td><td><code>lint</code> がエラーにする</td></tr>
         </tbody>
       </table></div>
-      <p class="note">フィールドは HTML なので、改行は <code>to_html()</code> で <code>&lt;br&gt;</code> に変換してから送る。<b>行頭の空白は落とされる。</b></p>
     </section>
 
     <!-- ══ 英単語 ══ -->
-    <section id="eng" data-title="英単語（ankikit eng）">
+    <section id="eng" data-title="英単語（一括登録）">
       <h2>英単語 — JSON から一気に流し込む</h2>
       <p class="prose"><code>english-vocab</code> デッキだけは対話も承認面談も通さない。本から拾った単語に「今日どこで詰まった？」と聞く意味は無いので、<b>自分で JSON に打ち込んで <code>ankikit eng</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。</p>
 
@@ -819,10 +656,10 @@ tags: nuance</div>
 uv run ankikit eng words.json --dry-run  <span class="c"># 何が登録され何が弾かれるかだけ見る</span>
 uv run ankikit eng words.json --tag duo3 <span class="c"># 全カードに出典タグを付ける</span></div>
 
-      <p class="note note--warn">承認の原則は形を変えて残っている。<code>eng</code> は <b>main 上でしか push しない</b>ので、「Anki にあるもの = main にあるもの」は崩れない。他のブランチで書くだけなら <code>--no-push</code>。</p>
+      <p class="note note--warn">承認の原則は形を変えて残っている。<code>eng</code> は <b>main 上でしか push しない</b>ので、「Anki にあるもの ＝ main にあるもの」は崩れない。他のブランチで書くだけなら <code>--no-push</code>。</p>
 
       <h3>入力 JSON</h3>
-      <p class="prose">本から手で打ち込む前提の形式。配列だけでも、設定つきのオブジェクトでも受ける。</p>
+      <p class="prose">本から手で打ち込む前提の形式。<b>配列だけでも、設定つきのオブジェクトでも受ける。</b></p>
       <div class="cmd">{
   "tags": ["duo3"],                            <span class="c"># 全カードに付くタグ（省略可）</span>
   "words": [
@@ -861,9 +698,8 @@ tags: word::anyway         <span class="c"># ← 重複判定のキー。消す�
         </tbody>
       </table></div>
 
-      <h3>重複と壊れた入力</h3>
-      <p class="prose">重複判定はこのデッキだけ<b>単語</b>で行う（他のデッキは表面のハッシュ）。<code>Circle Back</code> と <code>circle-back</code> は同じ語として扱う。</p>
-      <p class="note"><b>1 件の不備で全体は止まらない。</b>壊れた行と重複だけ落として、残りはそのまま登録する。だから同じファイルに追記しながら何度流してもよく、直した行だけが後から入る。全部止めたいときは <code>--strict</code>。</p>
+      <h3>1 件の不備で全体は止まらない</h3>
+      <p class="prose">重複判定はこのデッキだけ<b>単語</b>で行う（他のデッキは表面のハッシュ）。<code>Circle Back</code> と <code>circle-back</code> は同じ語。<b>壊れた行と重複だけ落として、残りはそのまま登録する</b>ので、同じファイルに追記しながら何度流してもよく、直した行だけが後から入る。全部止めたいときは <code>--strict</code>。</p>
       <div class="cmd"><span class="c">ERROR [5] woke: 例文に 'woke' が見つからないので空欄にできません。…</span>
 <span class="c">ERROR [6] defer: sentence が空です</span>
 <span class="c">重複: [4] Anyway: ファイル内の [1] と同じ単語なので飛ばしました</span>
@@ -873,7 +709,7 @@ english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 1 / 不備 2<
         <tbody>
           <tr><td class="k">0</td><td>全件そのまま登録できた</td></tr>
           <tr><td class="k">1</td><td>登録はしたが、飛ばした行がある</td></tr>
-          <tr><td class="k">2</td><td>1 枚も作れない（ファイルが無い / JSON が壊れている / Anki が起動していない）</td></tr>
+          <tr><td class="k">2</td><td>1 枚も作れない（ファイルが無い / JSON が壊れている / main に居ない / Anki 未起動）</td></tr>
         </tbody>
       </table></div>
       <p class="note">JSON が壊れていたら行・桁とその行の中身を出す。全角の <code>：</code> や末尾の余分なカンマといった手打ちの定番はヒントまで出る。</p>
@@ -883,7 +719,7 @@ english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 1 / 不備 2<
         <div class="judge--in"><h4>入れる</h4><ul>
           <li>読んでいて意味が取れずに止まった語</li>
           <li>意味は知っていたが、その文での使われ方が意外だった語</li>
-          <li>例文が本文からそのまま取れる語（自作の例文より、出会った文を使う）</li>
+          <li>例文が本文からそのまま取れる語（自作の例文より、出会った文）</li>
         </ul></div>
         <div class="judge--out"><h4>入れない</h4><ul>
           <li>例文なしの単語（この形式に載らない）</li>
@@ -902,123 +738,139 @@ english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 1 / 不備 2<
       <h3>承認フロー（この順に叩く）</h3>
       <div class="cmd">uv run ankikit stage &lt;slug&gt;        <span class="c"># staging/&lt;slug&gt; に切り替え（無ければ main から作る）</span>
 <span class="c">#   → decks/&lt;slug&gt;/cards/YYYY-MM-DD.md を書く</span>
-uv run ankikit lint --deck &lt;slug&gt;  <span class="c"># 書式チェック</span>
+uv run ankikit lint --deck &lt;slug&gt;  <span class="c"># 書式チェック。エラー 0 を確認してから進む</span>
 git add decks/&lt;slug&gt; &amp;&amp; git commit -m "cards(&lt;slug&gt;): YYYY-MM-DD N枚"
-git diff main...HEAD -- decks/     <span class="c"># 承認前の確認</span>
-uv run ankikit approve &lt;slug&gt;      <span class="c"># main へ --no-ff マージ ＝ 承認</span>
-uv run ankikit push --deck &lt;slug&gt;  <span class="c"># ここで初めて Anki に入る</span></div>
+git diff main...HEAD -- decks/     <span class="c"># 承認前に何が入るか見る</span>
+uv run ankikit approve &lt;slug&gt;      <span class="c"># main へ --no-ff マージ ＝ 承認。main に切り替わる</span>
+uv run ankikit push --deck &lt;slug&gt;  <span class="c"># ここで初めて Anki に入る</span>
+uv run ankikit status &lt;slug&gt; --write <span class="c"># README の学習状況を更新（任意）</span></div>
 
       <h3>一覧</h3>
       <div class="tw"><table>
-        <thead><tr><th>コマンド</th><th>用途</th></tr></thead>
+        <thead><tr><th>コマンド</th><th>用途</th><th>主なオプション</th></tr></thead>
         <tbody>
-          <tr><td class="k"><code>ankikit decks</code></td><td>デッキ一覧・枚数・未マージ枚数</td></tr>
-          <tr><td class="k"><code>ankikit new &lt;slug&gt;</code></td><td>デッキの雛形作成</td></tr>
-          <tr><td class="k"><code>ankikit stage &lt;slug&gt;</code></td><td>デッキ用の staging ブランチに切り替え</td></tr>
-          <tr><td class="k"><code>ankikit lint</code></td><td>書式チェック（作業ツリー）</td></tr>
-          <tr><td class="k"><code>ankikit pending</code></td><td>まだ main にマージされていないカード</td></tr>
-          <tr><td class="k"><code>ankikit approve &lt;slug&gt;</code></td><td>staging を main にマージ（＝承認）</td></tr>
-          <tr><td class="k"><code>ankikit push --dry-run</code></td><td>何が追加・更新されるか確認</td></tr>
-          <tr><td class="k"><code>ankikit push --deck &lt;slug&gt;</code></td><td>反映（main の内容のみ・Anki 起動が必要）</td></tr>
-          <tr><td class="k"><code>ankikit eng &lt;file.json&gt;</code></td><td>英単語 JSON をカードにして Anki まで反映（<a href="#eng">詳細</a>）</td></tr>
-          <tr><td class="k"><code>ankikit install</code></td><td>スキル（<code>/anki-grill</code>・<code>/anki-initialize</code>）をこのリポジトリに配置（<a href="#setup">詳細</a>）</td></tr>
-          <tr><td class="k"><code>ankikit doctor</code></td><td>Anki 接続とノートタイプ名の確認</td></tr>
-          <tr><td class="k"><code>uv run pytest</code></td><td>テスト（道具側のリポジトリで）</td></tr>
+          <tr><td class="k"><code>decks</code></td><td>デッキ一覧・枚数・未マージ枚数・Anki 側の有無</td><td>—</td></tr>
+          <tr><td class="k"><code>status [slug]</code></td><td>学習状況のまとめ（ファイル側 ＋ Anki 側）</td><td><code>--write</code>（README に書き戻す）</td></tr>
+          <tr><td class="k"><code>new &lt;slug&gt;</code></td><td>デッキの雛形作成</td><td><code>--anki-deck "親::子"</code> <code>--note-type basic|cloze</code></td></tr>
+          <tr><td class="k"><code>stage &lt;slug&gt;</code></td><td><code>staging/&lt;slug&gt;</code> に切り替え</td><td>—</td></tr>
+          <tr><td class="k"><code>lint</code></td><td>書式チェック（作業ツリー）</td><td><code>--deck &lt;slug&gt;</code></td></tr>
+          <tr><td class="k"><code>pending</code></td><td>まだ main に無いカードを一覧</td><td><code>--deck &lt;slug&gt;</code></td></tr>
+          <tr><td class="k"><code>approve [slug]</code></td><td>staging を main に <code>--no-ff</code> マージ（＝承認）</td><td><code>--branch &lt;name&gt;</code></td></tr>
+          <tr><td class="k"><code>push</code></td><td>承認済みのカードを Anki へ反映</td><td><code>--deck</code> <code>--dry-run</code> <code>--force</code> <code>-v</code> <code>--worktree</code></td></tr>
+          <tr><td class="k"><code>eng &lt;file.json&gt;</code></td><td>英単語 JSON をカードにして Anki まで（<a href="#eng">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
+          <tr><td class="k"><code>install</code></td><td>スキルをこのリポジトリに配置</td><td><code>--list</code> <code>--force</code></td></tr>
+          <tr><td class="k"><code>doctor</code></td><td>Anki 接続とノートタイプ名の確認</td><td>—</td></tr>
         </tbody>
       </table></div>
-      <p class="note note--warn"><code>--ref &lt;branch&gt;</code> で承認済みとみなすブランチを変えられる。<code>push --worktree</code> は<b>承認を無視して</b>作業ツリーを送る非常口。通常は使わない。</p>
+      <p class="note"><b>全コマンド共通:</b> <code>--ref &lt;branch&gt;</code> で「承認済みとみなすブランチ」を変えられる（既定 <code>main</code>）。<br>
+      <b><code>decks/</code> が無くても走る</b>のは <code>new</code> <code>install</code> <code>doctor</code> の 3 つだけ。他は <code>decks/</code> を見つけられないと理由を言って止まる。</p>
+      <p class="note note--warn"><code>push --worktree</code> は<b>承認を無視して</b>作業ツリーを送る非常口。これを使うと「Anki にあるもの ＝ main にあるもの」が崩れる。通常は使わない。</p>
     </section>
 
-    <!-- ══ リポジトリ ══ -->
-    <section id="repo" data-title="リポジトリを触る">
-      <h2>リポジトリを触る</h2>
-      <p class="prose">道具（public <code>ankikit</code>）とカード（private <code>anki-decks</code>）で置き場が分かれている。<b>どちらに何があるか</b>を先に押さえる。</p>
+    <!-- ══ 困ったとき ══ -->
+    <section id="trouble" data-title="困ったとき">
+      <h2>困ったとき</h2>
+      <p class="prose">よく出る症状と、その場の直し方。<b>ほとんどは「main に居ないか、Anki が起きていないか、名前が違うか」の 3 つ</b>に落ちる。</p>
 
-      <h3>道具側 — public <code>ankikit</code></h3>
-      <div class="tw"><table>
-        <thead><tr><th>パス</th><th>役割</th></tr></thead>
+      <div class="tw" style="margin-top:20px"><table>
+        <thead><tr><th>症状</th><th>何が起きているか</th><th>どうする</th></tr></thead>
         <tbody>
-          <tr><td class="k"><code>src/ankikit/</code></td><td>ライブラリ層（<code>parser</code> → <code>deck</code> → <code>sync</code> → <code>connect</code>、承認判定は <code>approval</code>）</td></tr>
-          <tr><td class="k"><code>src/ankikit/vocab.py</code></td><td>英単語 JSON の検証・例文の空欄化・重複キー（<code>ankikit eng</code> の中身）</td></tr>
-          <tr><td class="k"><code>src/ankikit/commands/</code></td><td>サブコマンド 1 つ = 1 モジュール。<code>cli.py</code> は組み立てるだけ</td></tr>
-          <tr><td class="k"><code>src/ankikit/skills/</code></td><td><b>スキルの正。</b><code>ankikit install</code> がここからカード側へ配る</td></tr>
-          <tr><td class="k"><code>decks/README.md</code></td><td>カードファイルの記法（カードそのものではなく仕様）</td></tr>
-          <tr><td class="k"><code>docs/handbook.html</code></td><td>このページ。<code>build_pages.py</code> が包んで GitHub Pages へ</td></tr>
-          <tr><td class="k"><code>tests/</code></td><td>pytest。<code>uv run pytest</code></td></tr>
+          <tr>
+            <td class="k">push が「追加 0」</td>
+            <td>カードは書けているが、まだ main にマージされていない。push は main しか読まない</td>
+            <td><code>ankikit pending</code> で確認 → <code>ankikit approve &lt;slug&gt;</code></td>
+          </tr>
+          <tr>
+            <td class="k"><code>AnkiConnect に接続できません</code></td>
+            <td>PC 版 Anki が起動していない／アドオン未導入。<b>カードは main にあるので無事</b></td>
+            <td>Anki を起動して <code>ankikit push</code> を叩き直すだけ。作業は巻き戻さない</td>
+          </tr>
+          <tr>
+            <td class="k">ノートタイプ名でエラー</td>
+            <td><code>anki.toml</code> の名前が、あなたのコレクションに実在しない（UI 言語や導入経緯で変わる）</td>
+            <td><code>ankikit doctor</code> の出力を見て <code>[note_types]</code> を直す。<a href="#internals">英語 UI の例</a></td>
+          </tr>
+          <tr>
+            <td class="k"><code>decks/ が見つかりません</code></td>
+            <td>カード側リポジトリの外で叩いている。<b>黙って 0 件にはならず、どこを探したか言って止まる</b></td>
+            <td><code>~/anki-decks</code> の中で叩く。どうしても外からなら <code>ANKI_REPO_ROOT</code></td>
+          </tr>
+          <tr>
+            <td class="k">直したはずのカードが二重に増えた</td>
+            <td><b>表面を変えた</b>。表面のハッシュが ID なので、別カードとして追加される</td>
+            <td>Anki 側で古い方を消す。裏面だけの修正なら履歴を保ったまま更新される</td>
+          </tr>
+          <tr>
+            <td class="k">Anki で直した内容が消えた</td>
+            <td>正は <code>decks/</code> の Markdown。push は片方向で、Anki 側の編集は戻らない</td>
+            <td>Markdown を直して push し直す</td>
+          </tr>
+          <tr>
+            <td class="k"><code>lint</code> が重複エラー</td>
+            <td>同じ表面のカードが 2 枚ある</td>
+            <td>片方を消すか、表面を書き分ける（表面が ID なので同居できない）</td>
+          </tr>
+          <tr>
+            <td class="k"><code>stage</code> が失敗する</td>
+            <td><code>decks/&lt;slug&gt;/</code> がまだ無い</td>
+            <td>先に <code>ankikit new &lt;slug&gt;</code>（本筋は <code>/anki-initialize</code>）</td>
+          </tr>
+          <tr>
+            <td class="k"><code>approve</code> が止まる</td>
+            <td><code>decks/</code> に未コミットの変更が残っている</td>
+            <td>先にコミットする。<b>マージは常にコミット済みの状態から</b></td>
+          </tr>
+          <tr>
+            <td class="k"><code>install</code> してもスキルが古いまま</td>
+            <td>手で直したスキルは守られて上書きされない</td>
+            <td>捨てていいなら <code>ankikit install --force</code>。中身を見るだけなら <code>--list</code></td>
+          </tr>
+          <tr>
+            <td class="k"><code>eng</code> で一部の語だけ入らない</td>
+            <td>仕様。壊れた行と重複だけ落として残りは通す</td>
+            <td>エラー行を直して<b>同じファイルをもう一度流す</b>。既に入った語は重複で自動的に飛ぶ</td>
+          </tr>
+          <tr>
+            <td class="k">スマホに来ない</td>
+            <td>push が届くのは PC 版 Anki まで</td>
+            <td>PC 版で同期（AnkiWeb）→ スマホ側でも同期</td>
+          </tr>
         </tbody>
       </table></div>
 
-      <h3>カード側 — private <code>anki-decks</code></h3>
-      <div class="tw"><table>
-        <thead><tr><th>パス</th><th>役割</th></tr></thead>
-        <tbody>
-          <tr><td class="k"><code>decks/&lt;slug&gt;/README.md</code></td><td>そのデッキの方針。「入れる基準／入れない基準」が判断材料</td></tr>
-          <tr><td class="k"><code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code></td><td>カード本体</td></tr>
-          <tr><td class="k"><code>anki.toml</code></td><td>Anki 環境依存の設定（ノートタイプ名・フィールド名）</td></tr>
-          <tr><td class="k"><code>.claude/skills/</code></td><td><code>ankikit install</code> が置く。手で直すなら <code>--force</code> の挙動に注意</td></tr>
-          <tr><td class="k"><code>pyproject.toml</code></td><td><code>ankikit</code> への依存だけ。<code>uv.lock</code> でバージョンが固定される</td></tr>
-        </tbody>
-      </table></div>
-
-      <h3>サブコマンドを足す</h3>
-      <p class="prose"><code>commands/</code> にファイルを 1 つ作り（<code>NAME</code> / <code>HELP</code> / <code>add_arguments(parser)</code> / <code>run(args) -&gt; int</code>）、<code>commands/__init__.py</code> の <code>ALL</code> に並べる。<b><code>cli.py</code> は触らない。</b></p>
-      <p class="note"><code>decks/</code> が無くても走るコマンド（<code>new</code> <code>install</code> <code>doctor</code>）は <code>NEEDS_DECKS = False</code> を置く。既定は <code>True</code> で、<code>decks/</code> が見つからなければ <code>cli</code> が理由を出して止める。</p>
-
-      <h3>実装上の注意</h3>
-      <ul class="plain">
-        <li><b>カードの置き場は <code>config.find_repo_root()</code> が決める。</b> 環境変数 <code>ANKI_REPO_ROOT</code> → カレントから上へ <code>anki.toml</code> / <code>decks/</code> を探す → 開発時のパッケージ 2 つ上、の順。<b>依存として入れると 3 番目は site-packages を指すので当てにできない。</b></li>
-        <li><code>approval.decks_at(ref)</code> が <code>git archive</code> で ref 時点の <code>decks/</code> を一時展開する。push はそこを読む。<b>一時ディレクトリなので、カードの読み込みは必ず <code>with</code> の中で終わらせる。</b></li>
-        <li>同一カード判定は<b>表面のハッシュ</b>（<code>ankikit-uid::&lt;hash&gt;</code> タグ）。ただし <code>english-vocab</code> だけは<b>単語</b>（<code>word::&lt;単語&gt;</code> タグ）。</li>
-        <li>ノートタイプ名は Anki の UI 言語で変わる。<code>config.py</code> の <code>DEFAULTS</code> が既定値で、<code>anki.toml</code> の <code>[note_types]</code> が項目単位で上書きする。<code>ankikit doctor</code> で確認する。</li>
-        <li>フィールドは HTML。改行は <code>to_html()</code> で <code>&lt;br&gt;</code> に変換してから送る。行頭の空白は落とされる。</li>
-        <li><code>ANKI_CONNECT_URL</code> で接続先を差し替えられる。</li>
-      </ul>
-
-      <h3>anki.toml（英語 UI の場合）</h3>
-      <div class="cmd">[note_types.basic]
-model = "Basic"
-front = "Front"
-back  = "Back"
-
-[note_types.cloze]
-model = "Cloze"
-front = "Text"
-back  = "Back Extra"</div>
+      <p class="note note--gate" style="margin-top:20px"><b>迷ったらまず 2 つ。</b> <code>uv run ankikit decks</code>（どのデッキに何枚あって、何枚が未マージか）と <code>uv run ankikit doctor</code>（Anki と話せているか）。ここまでで大半は切り分けられる。</p>
     </section>
 
-    <!-- ══ Anki リファレンス ══ -->
-    <section id="anki-ref" data-title="Anki 本体リファレンス">
-      <h2>Anki 本体リファレンス</h2>
-      <p class="prose">Anki の構造は 4 層に分かれ、設定もこの階層ごとに存在する。<b>デッキ自体は学習アルゴリズムの数値をほぼ持たない</b>——それはデッキオプション（プリセット）が保持し、複数デッキで共有できる。</p>
+    <!-- ══ Anki 本体 ══ -->
+    <section id="anki-ref" data-title="Anki 本体の設定">
+      <h2>Anki 本体の設定</h2>
+      <p class="prose">ここから先は ankikit ではなく <b>Anki 側</b>の話。構造は 4 層で、設定もこの階層ごとにある。<b>デッキ自体は学習アルゴリズムの数値をほぼ持たない</b>——それを持つのはデッキオプション（プリセット）で、複数デッキで共有できる。</p>
 
       <div class="tree" style="margin-top:20px"><b>デッキ (Deck)</b>          カードの置き場
  └─ <b>カード (Card)</b>       ノートタイプのテンプレートから自動生成
      └─ <b>ノート (Note)</b>   フィールドにデータが入っている実体
          └─ <b>ノートタイプ (Note Type / Model)</b>   フィールド定義＋カードテンプレート定義</div>
 
-      <h3>実践的な設定の勘所</h3>
+      <h3>まずここだけ</h3>
       <ol class="plain">
-        <li><b>アルゴリズムは FSRS 推奨。</b> Deck Options の一番下で ON。目標保持率 90% から始め、レビュー 1000 件を超えたら Optimize で個人最適化。</li>
-        <li><b>学習ステップは 1 日以内に収める。</b> FSRS 導入後は長い学習ステップは非推奨（<code>1m 10m</code> 程度で十分）。</li>
-        <li><b>1 日の新規カード枚数は少なめから。</b> 10〜20 枚 / 日で始め、こなせるようなら増やす。</li>
-        <li><b>Maximum reviews/day は絞りすぎない。</b> 低いと復習が繰り越されて雪だるま式に増える「隠れ滞留」を招く。</li>
-        <li><b>プリセットは目的別に複数用意。</b> 性質の違うデッキは別プリセットにする。</li>
-        <li><b>フラグ・タグは学習順序に影響しない。</b> 優先度を変えたいときは Reposition か フィルタデッキ。</li>
+        <li><b>アルゴリズムは FSRS。</b> Deck Options の一番下で ON。目標保持率 90% から始め、レビュー 1000 件を超えたら Optimize で個人最適化。</li>
+        <li><b>学習ステップは 1 日以内に収める。</b> FSRS 導入後、長い学習ステップは非推奨（<code>1m 10m</code> で十分）。</li>
+        <li><b>新規カードは少なめから。</b> 10〜20 枚 / 日で始め、こなせるようなら増やす。</li>
+        <li><b>Maximum reviews/day は絞りすぎない。</b> 低いと復習が繰り越され、雪だるま式に増える「隠れ滞留」を招く。</li>
+        <li><b>フラグ・タグは学習順序に影響しない。</b> 優先度を変えたいときは Reposition かフィルタデッキ。</li>
       </ol>
 
-      <h3>各層の設定</h3>
-      <details><summary>デッキオプション（プリセット）</summary><div class="d-body">
-        <p>歯車アイコン → Options。<b>1 つのプリセットを複数デッキに割り当てられる</b>のがポイント。</p>
+      <details style="margin-top:22px"><summary>デッキオプション（プリセット）の全項目</summary><div class="d-body">
+        <p>歯車アイコン → Options。<b>1 つのプリセットを複数デッキに割り当てられる</b>のがポイント。性質の違うデッキは別プリセットにする。</p>
         <div class="tw"><table>
           <thead><tr><th>グループ</th><th>主な項目</th></tr></thead>
           <tbody>
-            <tr><td class="k">Daily Limits</td><td>New cards/day（新規導入の上限）／ Maximum reviews/day（詰まり防止に大きめ推奨）／ 親子デッキ間で上限をどう共有するか</td></tr>
+            <tr><td class="k">Daily Limits</td><td>New cards/day ／ Maximum reviews/day（大きめ推奨）／ 親子デッキ間での上限の共有</td></tr>
             <tr><td class="k">New Cards</td><td>Learning steps（例 <code>1m 10m</code>）／ Order（追加順・ランダム）／ Insertion order</td></tr>
             <tr><td class="k">Lapses</td><td>Relearning steps ／ Leech action（サスペンド or タグのみ）／ Leech threshold ／ Minimum interval</td></tr>
             <tr><td class="k">Display Order</td><td>New/review order ／ Interday・Intraday learning order ／（FSRS 時）Ascending retrievability</td></tr>
             <tr><td class="k">Burying</td><td>同じノートから生成された兄弟カードの重複出題を抑制（new / review / interday）</td></tr>
-            <tr><td class="k">Timer・Audio</td><td>解答時間の表示 ／ 自動再生・スキップ動作</td></tr>
-            <tr><td class="k">FSRS</td><td>有効化（グローバル）／ Desired retention（0.70〜0.97、目安 90%）／ FSRS parameters（Optimize で個人最適化）／ Maximum interval ／ Historical retention</td></tr>
+            <tr><td class="k">FSRS</td><td>有効化（グローバル）／ Desired retention（0.70〜0.97、目安 90%）／ FSRS parameters（Optimize）／ Maximum interval ／ Historical retention</td></tr>
             <tr><td class="k">SM-2 専用</td><td>Starting ease ／ Easy bonus ／ Interval modifier ／ Graduating interval ／ Easy interval（FSRS 有効時は非表示）</td></tr>
             <tr><td class="k">Easy Days</td><td>曜日ごとに Normal / Reduced / Minimum。間隔計算後の微調整で、過去には遡及しない</td></tr>
           </tbody>
@@ -1026,7 +878,7 @@ back  = "Back Extra"</div>
       </div></details>
 
       <details><summary>ノートタイプ（Note Type / Model）</summary><div class="d-body">
-        <p>「Manage Note Types」から管理。<b>フィールド構成とカードテンプレートのセット</b>であり、デッキとは独立した概念（同じノートタイプを異なるデッキで使い回せる）。</p>
+        <p>「Manage Note Types」から管理。<b>フィールド構成とカードテンプレートのセット</b>で、デッキとは独立（同じノートタイプを別デッキで使い回せる）。</p>
         <ul>
           <li><b>フィールド</b>: 名前・並び順、表示フォント、Sticky（次の追加時に内容を保持）、Sort field（並び替え・重複チェックの基準）</li>
           <li><b>カードテンプレート</b>: Front / Back Template（<code>{{フィールド名}}</code> で挿入、<code>{{FrontSide}}</code> で表面を引き継ぎ）、Styling (CSS)、条件付き表示 <code>{{#フィールド}}...{{/フィールド}}</code></li>
@@ -1054,16 +906,61 @@ back  = "Back Extra"</div>
       </div></details>
 
       <details><summary>フィルタデッキ・全体設定</summary><div class="d-body">
-        <p><b>フィルタデッキ</b>は検索条件でカードを一時的に集める特殊デッキ（例 <code>is:due tag:英単語</code>）。「Reschedule based on my answers in this deck」のチェックを外すと、元のスケジュールに影響を与えず一時演習だけできる。</p>
+        <p><b>フィルタデッキ</b>は検索条件でカードを一時的に集める特殊デッキ（例 <code>is:due tag:英単語</code>）。「Reschedule based on my answers in this deck」を外すと、元のスケジュールに影響を与えず一時演習だけできる。</p>
         <p><b>全体設定 (Preferences)</b>: Scheduler v3 ／ Next day starts at（日付の切り替わり時刻）／ Show next review time ／ AnkiWeb 同期 ／ バックアップ世代数 ／ 表示設定。</p>
       </div></details>
 
       <p class="note" style="margin-top:20px">出典: Anki 公式マニュアル（Deck Options / Note Types）および 2026 年時点の FSRS 関連ガイド。元文書は <code>docs/anki-reference.md</code>。</p>
     </section>
 
+    <!-- ══ 実装メモ ══ -->
+    <section id="internals" data-title="実装メモ">
+      <h2>実装メモ</h2>
+      <p class="prose">ここから下は<b>道具を直す人</b>だけ読めばよい。使うだけなら不要。</p>
+
+      <h3>どこに何があるか</h3>
+      <div class="tw"><table>
+        <thead><tr><th>パス</th><th>役割</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>src/ankikit/</code></td><td>ライブラリ層（<code>parser</code> → <code>deck</code> → <code>sync</code> → <code>connect</code>、承認判定は <code>approval</code>）</td></tr>
+          <tr><td class="k"><code>src/ankikit/vocab.py</code></td><td>英単語 JSON の検証・例文の空欄化・重複キー（<code>ankikit eng</code> の中身）</td></tr>
+          <tr><td class="k"><code>src/ankikit/commands/</code></td><td>サブコマンド 1 つ = 1 モジュール。<code>cli.py</code> は組み立てるだけ</td></tr>
+          <tr><td class="k"><code>src/ankikit/skills/</code></td><td><b>スキルの正。</b><code>ankikit install</code> がここからカード側へ配る</td></tr>
+          <tr><td class="k"><code>decks/README.md</code></td><td>カードファイルの記法（カードそのものではなく仕様）</td></tr>
+          <tr><td class="k"><code>docs/handbook.html</code></td><td>このページ。<code>build_pages.py</code> が包んで GitHub Pages へ</td></tr>
+          <tr><td class="k"><code>tests/</code></td><td><code>uv run pytest</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <h3>サブコマンドを足す</h3>
+      <p class="prose"><code>commands/</code> にファイルを 1 つ作り（<code>NAME</code> / <code>HELP</code> / <code>add_arguments(parser)</code> / <code>run(args) -&gt; int</code>）、<code>commands/__init__.py</code> の <code>ALL</code> に並べる。<b><code>cli.py</code> は触らない。</b>
+      <code>decks/</code> が無くても走るコマンドには <code>NEEDS_DECKS = False</code> を置く（既定 <code>True</code>）。</p>
+
+      <h3>踏みやすいところ</h3>
+      <ul class="plain">
+        <li><b>カードの置き場は <code>config.find_repo_root()</code> が決める。</b> <code>ANKI_REPO_ROOT</code> → カレントから上へ <code>anki.toml</code> / <code>decks/</code> を探す → 開発時のパッケージ 2 つ上、の順。<b>依存として入れると 3 番目は site-packages を指すので当てにできない。</b></li>
+        <li><code>approval.decks_at(ref)</code> は <code>git archive</code> で ref 時点の <code>decks/</code> を一時展開する。push はそこを読む。<b>一時ディレクトリなので、カードの読み込みは必ず <code>with</code> の中で終わらせる。</b></li>
+        <li>同一カード判定は<b>表面のハッシュ</b>（<code>ankikit-uid::&lt;hash&gt;</code> タグ）。ただし <code>english-vocab</code> だけは<b>単語</b>（<code>word::&lt;単語&gt;</code> タグ）。</li>
+        <li>フィールドは HTML。改行は <code>to_html()</code> で <code>&lt;br&gt;</code> に変換してから送る。行頭の空白は落ちる。</li>
+        <li>接続先は <code>ANKI_CONNECT_URL</code>（既定 <code>http://localhost:8765</code>）で差し替えられる。</li>
+      </ul>
+
+      <h3><code>anki.toml</code>（英語 UI の場合）</h3>
+      <p class="prose">既定値は日本語 UI 用（basic = <code>基本</code>［表面 / 裏面］、cloze = <code>穴埋め問題</code>［Text / 裏面追記］）。<code>config.py</code> の <code>DEFAULTS</code> を <code>anki.toml</code> が項目単位で上書きする。</p>
+      <div class="cmd">[note_types.basic]
+model = "Basic"
+front = "Front"
+back  = "Back"
+
+[note_types.cloze]
+model = "Cloze"
+front = "Text"
+back  = "Back Extra"</div>
+    </section>
+
     <footer class="foot">
       <span>ankikit — その日の学習を振り返って Anki デッキに落とし込むための道具箱</span>
-      <span>元文書: <code>README.md</code> / <code>decks/README.md</code> / <code>.claude/skills/</code> / <code>docs/anki-reference.md</code></span>
+      <span>元文書: <code>README.md</code> / <code>decks/README.md</code> / <code>src/ankikit/skills/</code> / <code>docs/anki-reference.md</code></span>
     </footer>
   </main>
 </div>
