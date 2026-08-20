@@ -27,5 +27,9 @@ def run(args: argparse.Namespace) -> int:
             common.error(str(err))
         failed += len(errors)
         cloze = sum(1 for c in cards if c.is_cloze)
-        print(f"{common.describe(deck)}: {len(cards)} 枚（うち穴埋め {cloze}）, エラー {len(errors)} 件")
+        known = sum(1 for c in cards if c.known)
+        print(
+            f"{common.describe(deck)}: {len(cards)} 枚"
+            f"（うち穴埋め {cloze} / 既習 {known}）, エラー {len(errors)} 件"
+        )
     return 1 if failed else 0

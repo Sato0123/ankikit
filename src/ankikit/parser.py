@@ -14,10 +14,16 @@
     A: 人の判断に従う / 一任する
     tags: nuance
 
+    ## 3-way handshake の 3 往復目は何をしている？
+    A: クライアントがサーバの SYN に ACK を返している。
+    known: 3
+
 ルール:
 - `## ` 行がカードの開始。行頭の `Q:` / `Q：` は飾りなので取り除く。
 - `A:` / `A：` 行から裏面。次の `## ` か EOF まで続く（複数行可）。
 - `tags:` 行はそのカード固有のタグ。空白かカンマ区切り。
+- `known:` 行は「既に答えられた」印（理解度 1〜4）。Anki への**新規追加時にだけ**
+  初期間隔の下駄になる（config.KNOWN_INTERVALS）。
 - `<!-- ... -->` はファイル内メモ扱いで、Anki には送らない。
 - front に `{{c1::...}}` があれば穴埋めカードとして扱う。
 """
@@ -31,10 +37,13 @@ from pathlib import Path
 
 import yaml
 
+from . import config
+
 HEADING_RE = re.compile(r"^##\s+(.*)$")
 ANSWER_RE = re.compile(r"^A[:：]\s*(.*)$")
 QPREFIX_RE = re.compile(r"^Q[:：]\s*")
 TAGS_RE = re.compile(r"^tags[:：]\s*(.*)$", re.IGNORECASE)
+KNOWN_RE = re.compile(r"^known[:：]\s*(.*)$", re.IGNORECASE)
 COMMENT_RE = re.compile(r"<!--.*?-->", re.DOTALL)
 CLOZE_RE = re.compile(r"\{\{c\d+::")
 
@@ -44,6 +53,7 @@ class Card:
     front: str
     back: str
     tags: list[str] = field(default_factory=list)
+    known: int | None = None
     source: Path | None = None
     line: int = 0
 
@@ -104,6 +114,20 @@ def _split_tags(raw: str) -> list[str]:
     return [t for t in re.split(r"[,\s]+", raw.strip().strip("[]")) if t]
 
 
+def _parse_known(raw: str | None) -> tuple[int | None, str | None]:
+    """`known:` の値を理解度に変換する。戻り値は (理解度, エラー文)。"""
+    if raw is None or raw == "":
+        return None, None
+    levels = sorted(config.KNOWN_INTERVALS)
+    try:
+        level = int(raw)
+    except ValueError:
+        return None, f"known の値が数字ではありません（{raw!r}、{levels[0]}〜{levels[-1]}）"
+    if level not in config.KNOWN_INTERVALS:
+        return None, f"known は {levels[0]}〜{levels[-1]} で書いてください（{raw}）"
+    return level, None
+
+
 def _clean(lines: list[str]) -> str:
     text = "\n".join(lines)
     text = COMMENT_RE.sub("", text)
@@ -117,6 +141,9 @@ def parse_text(text: str, path: Path | None = None) -> ParsedFile:
     file_tags = meta.get("tags") or []
     if isinstance(file_tags, str):
         file_tags = _split_tags(file_tags)
+    # フロントマターの known はファイル内の既定値。カード側の known: 行が上書きする。
+    file_known = meta.get("known")
+    file_known = None if file_known is None else str(file_known)
 
     cards: list[Card] = []
     errors: list[ParseError] = []
@@ -126,24 +153,37 @@ def parse_text(text: str, path: Path | None = None) -> ParsedFile:
     front_lines: list[str] = []
     back_lines: list[str] = []
     card_tags: list[str] = []
+    card_known: str | None = None
     seen_answer = False
 
     def flush() -> None:
-        nonlocal heading, front_lines, back_lines, card_tags, seen_answer
+        nonlocal heading, front_lines, back_lines, card_tags, card_known, seen_answer
         if heading is None:
             return
         front = _clean([QPREFIX_RE.sub("", heading), *front_lines])
         back = _clean(back_lines)
+        known, known_error = _parse_known(card_known if card_known is not None else file_known)
         if not front:
             errors.append(ParseError(path, heading_line, "表面が空です"))
         elif not seen_answer:
             errors.append(ParseError(path, heading_line, f"'A:' 行がありません（{front[:30]}）"))
         elif not back:
             errors.append(ParseError(path, heading_line, f"裏面が空です（{front[:30]}）"))
+        elif known_error:
+            errors.append(ParseError(path, heading_line, known_error))
         else:
             tags = list(dict.fromkeys([*file_tags, *card_tags]))
-            cards.append(Card(front=front, back=back, tags=tags, source=path, line=heading_line))
-        heading, front_lines, back_lines, card_tags, seen_answer = None, [], [], [], False
+            cards.append(
+                Card(front=front, back=back, tags=tags, known=known, source=path, line=heading_line)
+            )
+        heading, front_lines, back_lines, card_tags, card_known, seen_answer = (
+            None,
+            [],
+            [],
+            [],
+            None,
+            False,
+        )
 
     for i, raw_line in enumerate(body.splitlines()):
         lineno = offset + i
@@ -165,6 +205,11 @@ def parse_text(text: str, path: Path | None = None) -> ParsedFile:
         tag_line = TAGS_RE.match(raw_line)
         if tag_line:
             card_tags.extend(_split_tags(tag_line.group(1)))
+            continue
+
+        known_line = KNOWN_RE.match(raw_line)
+        if known_line:
+            card_known = known_line.group(1).strip()
             continue
 
         (back_lines if seen_answer else front_lines).append(raw_line)

@@ -77,3 +77,26 @@ def update_note_fields(note_id: int, fields: dict[str, str]) -> None:
 
 def add_tags(note_ids: list[int], tags: str) -> None:
     invoke("addTags", notes=note_ids, tags=tags)
+
+
+def find_cards(query: str) -> list[int]:
+    return list(invoke("findCards", query=query))
+
+
+def cards_info(card_ids: list[int]) -> list[dict]:
+    """カードの学習状態。type（0=新規 1=学習中 2=復習 3=再学習）/ interval / reps / lapses。"""
+    if not card_ids:
+        return []
+    return list(invoke("cardsInfo", cards=card_ids))
+
+
+def set_due_date(card_ids: list[int], days: int) -> None:
+    """新規カードを「days 日後が期限の復習カード」にする。
+
+    `days!` の `!` は「間隔もその日数にする」の意味（付けないと期限だけ動いて間隔は 1 日のまま）。
+    **一度でも復習したカードに使うと学習履歴の間隔を書き換えてしまう**ので、
+    呼ぶ側で type == 0（新規）のカードだけに絞ること。
+    """
+    if not card_ids:
+        return
+    invoke("setDueDate", cards=card_ids, days=f"{days}!")

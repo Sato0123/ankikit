@@ -5,6 +5,7 @@
       english-vocab/
         README.md            ← このデッキの方針（フロントマターに設定）
         cards/2026-08-20.md  ← カード本体
+        notes/2026-08-20-*.md ← 学びの散文メモ（Anki には送らない）
 
 デッキの README.md のフロントマター:
 
@@ -41,10 +42,20 @@ class Deck:
     def cards_dir(self) -> Path:
         return self.path / "cards"
 
+    @property
+    def notes_dir(self) -> Path:
+        """学びの散文メモ。カードではないので push も lint も読まない。"""
+        return self.path / "notes"
+
     def card_files(self) -> list[Path]:
         if not self.cards_dir.is_dir():
             return []
         return sorted(p for p in self.cards_dir.glob("*.md") if p.name != "README.md")
+
+    def note_files(self) -> list[Path]:
+        if not self.notes_dir.is_dir():
+            return []
+        return sorted(p for p in self.notes_dir.glob("*.md") if p.name != "README.md")
 
     def load_cards(self) -> tuple[list[Card], list[ParseError]]:
         cards: list[Card] = []

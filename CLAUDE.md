@@ -23,7 +23,7 @@
 | `src/ankikit/vocab.py` | 英単語 JSON の検証・例文の空欄化・重複キー（`ankikit eng` の中身） |
 | `src/ankikit/commands/` | サブコマンド 1 つ = 1 モジュール。`cli.py` は組み立てるだけ |
 | `src/ankikit/skills/` | **スキルの正。** `ankikit install` がここからカード側へ配る |
-| `decks/README.md` | カードファイルの記法・承認フロー（仕様であって、カードではない） |
+| `decks/README.md` | カードファイルの記法・既習カード（`known:`）・`notes/`・承認フロー（仕様であって、カードではない） |
 | `docs/handbook.html` | 手順書。`build_pages.py` が包んで GitHub Pages へ出る |
 | `docs/anki-reference.md` | Anki 本体の設定リファレンス |
 | `anki.toml` | 開発とテストで使う既定のノートタイプ設定 |
@@ -40,6 +40,7 @@
 
 ```bash
 uv run ankikit decks              # デッキ一覧・枚数・未マージ枚数
+uv run ankikit status <slug>      # 学習状況（--write で README に書き戻す）
 uv run ankikit stage <slug>       # staging/<slug> に切り替え
 uv run ankikit lint --deck <slug> # カードファイルの書式チェック
 uv run ankikit pending            # main に未マージのカード
@@ -80,6 +81,19 @@ uv run pytest                     # テスト
   （`--strict` で全止め）。致命的（ファイル / JSON 自体が壊れている）だけ 2
 - push するのは **main 上のときだけ**。他のブランチでは `--no-push` を要求して、
   「Anki にあるもの = main にあるもの」を保つ
+
+## 既習カード（`known:`）と `notes/`
+
+**答えられたことも忘れる。** だから面談で即答できた論点も捨てずにカードにするが、新規カードとして入れると
+本当に知らなかったカードと同じ頻度で出て復習の枠を食う。カードに `known: 1〜4` を書くと
+`config.KNOWN_INTERVALS` の日数だけ間隔を進めた**復習カード**として入る（`setDueDate` の `<days>!`）。
+
+- 効くのは **Anki 側で type == 0（まだ一度も出ていない）のカードだけ**。`sync._apply_known` がそこで絞るので、
+  復習が始まったカードの間隔は何度 push しても書き換わらない。後から `known:` を足した場合も拾える
+- Anki 側には `known::<数字>` タグが付く
+- `decks/<slug>/notes/*.md` は散文の学びメモ。`Deck.cards_dir` しか読まないので push も lint も無視する
+- `ankikit status --write` は README の `<!-- ankikit:status -->` ブロックだけを差し替える。
+  Anki 側の内訳は自前で期限計算せず、`is:new` / `prop:ivl>=21` などの**検索クエリの件数**で数える
 
 ## 実装上の注意
 

@@ -16,6 +16,10 @@ class FakeAnki:
         self.added: list[dict] = []
         self.updated: list[tuple[int, dict]] = []
         self.created_decks: list[str] = []
+        self.due_dates: list[tuple[list[int], int]] = []
+        self.tagged: list[tuple[list[int], str]] = []
+        # note_id -> そのノートのカードの type（0=新規）。既定は新規 1 枚。
+        self.card_types: dict[int, list[int]] = {}
 
     def create_deck(self, name):
         self.created_decks.append(name)
@@ -32,6 +36,22 @@ class FakeAnki:
 
     def update_note_fields(self, note_id, fields):
         self.updated.append((note_id, fields))
+
+    def find_cards(self, query):
+        note_id = int(query.split(":")[1])
+        return [note_id * 100 + i for i in range(len(self.card_types.get(note_id, [0])))]
+
+    def cards_info(self, card_ids):
+        return [
+            {"cardId": cid, "type": self.card_types.get(cid // 100, [0])[cid % 100]}
+            for cid in card_ids
+        ]
+
+    def set_due_date(self, card_ids, days):
+        self.due_dates.append((list(card_ids), days))
+
+    def add_tags(self, note_ids, tags):
+        self.tagged.append((list(note_ids), tags))
 
 
 def note(uid: str, front: str, back: str, note_id: int = 1) -> dict:
@@ -51,6 +71,10 @@ def fake(monkeypatch):
     monkeypatch.setattr(sync.connect, "notes_info", anki.notes_info)
     monkeypatch.setattr(sync.connect, "add_note", anki.add_note)
     monkeypatch.setattr(sync.connect, "update_note_fields", anki.update_note_fields)
+    monkeypatch.setattr(sync.connect, "find_cards", anki.find_cards)
+    monkeypatch.setattr(sync.connect, "cards_info", anki.cards_info)
+    monkeypatch.setattr(sync.connect, "set_due_date", anki.set_due_date)
+    monkeypatch.setattr(sync.connect, "add_tags", anki.add_tags)
     return anki
 
 
@@ -119,3 +143,53 @@ def test_forceならエラーがあっても送る(deck_dir, fake):
     report = sync.push_deck(deck, force=True)
     assert report.errors
     assert report.count("added") == 1
+
+
+# --- known:（既に答えられたカード）---------------------------------------
+
+
+def test_known付きは既習タグと初期間隔が付く(deck_dir, fake):
+    report = sync.push_deck(make_deck(deck_dir, "## front\nA: back\nknown: 3\n"))
+    assert f"{config.KNOWN_TAG_PREFIX}::3" in fake.added[0]["tags"]
+    # 追加された note_id は 1 → カードは 100 番台
+    assert fake.due_dates == [([100], config.KNOWN_INTERVALS[3])]
+    assert report.count_known() == 1
+
+
+def test_known無しならスケジュールに触らない(deck_dir, fake):
+    sync.push_deck(make_deck(deck_dir, "## front\nA: back\n"))
+    assert fake.due_dates == []
+
+
+def test_理解度が高いほど初期間隔が長い():
+    levels = sorted(config.KNOWN_INTERVALS)
+    days = [config.KNOWN_INTERVALS[lv] for lv in levels]
+    assert days == sorted(days) and days[0] >= 1
+
+
+def test_復習が始まったカードの間隔は書き換えない(deck_dir, fake):
+    deck = make_deck(deck_dir, "## front\nA: back\nknown: 3\n")
+    fake.notes = [note(deck.load_cards()[0][0].uid, "front", "back", note_id=7)]
+    fake.card_types = {7: [2]}  # 2 = 復習カード
+    report = sync.push_deck(deck)
+    assert fake.due_dates == []
+    assert report.count_known() == 0
+
+
+def test_あとからknownを足すとまだ新規のカードには効く(deck_dir, fake):
+    deck = make_deck(deck_dir, "## front\nA: back\nknown: 2\n")
+    fake.notes = [note(deck.load_cards()[0][0].uid, "front", "back", note_id=7)]
+    fake.card_types = {7: [0]}
+    sync.push_deck(deck)
+    assert fake.due_dates == [([700], config.KNOWN_INTERVALS[2])]
+    assert fake.tagged == [([7], f"{config.KNOWN_TAG_PREFIX}::2")]
+
+
+def test_間隔設定に失敗してもカード自体は成功扱い(deck_dir, fake, monkeypatch):
+    def boom(card_ids, days):
+        raise sync.connect.AnkiConnectError("setDueDate: なにか失敗")
+
+    monkeypatch.setattr(sync.connect, "set_due_date", boom)
+    report = sync.push_deck(make_deck(deck_dir, "## front\nA: back\nknown: 1\n"))
+    assert report.count("added") == 1 and report.count("failed") == 0
+    assert "既習の初期間隔" in report.results[0].detail

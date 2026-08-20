@@ -62,15 +62,19 @@ def _push(source: list[Deck], args: argparse.Namespace, ref_label: str) -> int:
 
 def _report(report: sync.DeckReport, args: argparse.Namespace, ref_label: str) -> int:
     prefix = "[dry-run] " if args.dry_run else ""
+    known = f" / うち既習 {report.count_known()}" if report.count_known() else ""
     print(
         f"{prefix}{common.describe(report.deck)} [{ref_label}]: 追加 {report.count('added')}"
         f" / 更新 {report.count('updated')} / 変更なし {report.count('unchanged')}"
-        f" / 失敗 {report.count('failed')}"
+        f" / 失敗 {report.count('failed')}{known}"
     )
     exit_code = 0
     for result in report.results:
         if args.verbose and result.action in ("added", "updated"):
-            print(f"  {result.action:8} {result.card.front[:50]}")
+            days = f"（既習 {result.known_days}日後）" if result.known_days else ""
+            print(f"  {result.action:8} {result.card.front[:50]}{days}")
+        if result.detail and result.action != "failed":
+            common.warn(f"{result.card.front[:30]}: {result.detail}")
         if result.action == "failed":
             common.error(f"失敗 {result.card.location()} {result.card.front[:40]}: {result.detail}")
             exit_code = 1

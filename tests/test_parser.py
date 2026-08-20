@@ -85,3 +85,30 @@ def test_エラーには行番号が入る():
 
 def test_改行はbrに変換される():
     assert to_html("a\nb") == "a<br>b"
+
+
+def test_known行は理解度として読まれる():
+    card = parse_text("## front\nA: back\nknown: 3\n").cards[0]
+    assert card.known == 3
+    assert card.back == "back"  # known 行は裏面に混ざらない
+
+
+def test_known無しのカードはNone():
+    assert parse_text("## front\nA: back\n").cards[0].known is None
+
+
+def test_フロントマターのknownがファイル既定になる():
+    parsed = parse_text("---\nknown: 2\n---\n## a\nA: x\n\n## b\nA: y\nknown: 4\n")
+    assert [c.known for c in parsed.cards] == [2, 4]
+
+
+def test_範囲外のknownはエラー():
+    parsed = parse_text("## front\nA: back\nknown: 9\n")
+    assert parsed.cards == []
+    assert "known は" in str(parsed.errors[0])
+
+
+def test_数字でないknownはエラー():
+    parsed = parse_text("## front\nA: back\nknown: たぶん\n")
+    assert parsed.cards == []
+    assert "数字ではありません" in str(parsed.errors[0])

@@ -31,11 +31,23 @@ tags: [{slug}]
 ## 入れない基準
 <!-- 例: 一覧・手順の丸暗記、文脈なしの用語、明日には使わない知識。 -->
 
+## 要点（この単元は何だったか）
+<!-- 後から README を開いて「ああこの単元ね」と分かる粒度で 5〜10 行。詳しくは notes/ に書く。 -->
+
+## 前提（既に押さえていること）
+<!-- 棚卸しで即答できた論点。カードには known: 3〜4 で入れてある（＝忘れたころに出る）。 -->
+
 ## カードの作り方
 <!-- 表面は「思い出すきっかけ」、裏面は一文＋なぜ。1カード1事実。 -->
 
 ## 運用メモ
 <!-- 1日の新規枚数の目安、leech の扱い、見直しのタイミングなど。 -->
+
+## 学習状況
+<!-- ここは `uv run ankikit status <slug> --write` が書き換える。手で書かない。 -->
+
+<!-- ankikit:status -->
+<!-- /ankikit:status -->
 """
 
 
@@ -52,6 +64,8 @@ def run(args: argparse.Namespace) -> int:
         return 1
 
     (path / "cards").mkdir(parents=True)
+    # 散文の学びメモ。カードではないので push も lint も読まない。
+    (path / "notes").mkdir()
     (path / "README.md").write_text(
         README_TEMPLATE.format(
             slug=args.slug,

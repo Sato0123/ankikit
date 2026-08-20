@@ -3,6 +3,10 @@
 同一カードかどうかは表面（front）のハッシュで判定し、`ankikit-uid::<hash>` タグで
 Anki 側を照合する。裏面だけ変えた場合は更新、表面を変えた場合は別カードとして追加される
 （古いカードは Anki 側に残るので、必要なら手で消す）。
+
+`known:` 付きのカード（＝面談で答えられたもの）は、Anki が**まだ新規と見なしている間だけ**
+初期間隔の下駄を履かせる。復習が始まったカードには二度と触らないので、
+何度 push しても学習履歴は壊れない。
 """
 
 from __future__ import annotations
@@ -19,6 +23,7 @@ class CardResult:
     card: Card
     action: str  # added / updated / unchanged / failed
     detail: str = ""
+    known_days: int | None = None  # 既習として初期間隔を与えたときだけ入る
 
 
 @dataclass
@@ -31,6 +36,10 @@ class DeckReport:
     def count(self, action: str) -> int:
         return sum(1 for r in self.results if r.action == action)
 
+    def count_known(self) -> int:
+        """このセッションで「既習」として初期間隔を与えた枚数。"""
+        return sum(1 for r in self.results if r.known_days is not None)
+
     @property
     def total(self) -> int:
         return len(self.results)
@@ -38,6 +47,10 @@ class DeckReport:
 
 def _uid_tag(uid: str) -> str:
     return f"{config.UID_TAG_PREFIX}::{uid}"
+
+
+def _known_tag(level: int) -> str:
+    return f"{config.KNOWN_TAG_PREFIX}::{level}"
 
 
 def _note_payload(card: Card, deck: Deck) -> dict:
@@ -51,7 +64,14 @@ def _note_payload(card: Card, deck: Deck) -> dict:
             spec.front: to_html(card.front),
             spec.back: to_html(card.back),
         },
-        "tags": sorted({config.TOOL_TAG, _uid_tag(card.uid), *card.tags}),
+        "tags": sorted(
+            {
+                config.TOOL_TAG,
+                _uid_tag(card.uid),
+                *([_known_tag(card.known)] if card.known else []),
+                *card.tags,
+            }
+        ),
         "options": {"allowDuplicate": False},
     }
 
@@ -93,11 +113,15 @@ def push_deck(deck: Deck, dry_run: bool = False, force: bool = False) -> DeckRep
 
         if current is None:
             if dry_run:
-                report.results.append(CardResult(card, "added"))
+                report.results.append(
+                    CardResult(card, "added", known_days=config.KNOWN_INTERVALS.get(card.known or 0))
+                )
                 continue
             try:
-                connect.add_note(payload)
-                report.results.append(CardResult(card, "added"))
+                note_id = connect.add_note(payload)
+                result = CardResult(card, "added")
+                _apply_known(card, note_id, result)
+                report.results.append(result)
             except connect.AnkiConnectError as exc:
                 report.results.append(CardResult(card, "failed", str(exc)))
             continue
@@ -105,16 +129,42 @@ def push_deck(deck: Deck, dry_run: bool = False, force: bool = False) -> DeckRep
         wanted = payload["fields"]
         actual = {name: value.get("value", "") for name, value in current.get("fields", {}).items()}
         changed = {k: v for k, v in wanted.items() if actual.get(k) != v}
-        if not changed:
-            report.results.append(CardResult(card, "unchanged"))
-            continue
+        action = "unchanged" if not changed else "updated"
         if dry_run:
-            report.results.append(CardResult(card, "updated", "裏面が変更されています"))
+            report.results.append(
+                CardResult(card, action, "裏面が変更されています" if changed else "")
+            )
             continue
         try:
-            connect.update_note_fields(int(current["noteId"]), changed)
-            report.results.append(CardResult(card, "updated"))
+            if changed:
+                connect.update_note_fields(int(current["noteId"]), changed)
+            result = CardResult(card, action)
+            # 後から known: を足した場合を拾う。まだ手を付けていないカードにしか効かない。
+            _apply_known(card, int(current["noteId"]), result, tags=current.get("tags", []))
+            report.results.append(result)
         except connect.AnkiConnectError as exc:
             report.results.append(CardResult(card, "failed", str(exc)))
 
     return report
+
+
+def _apply_known(card: Card, note_id: int, result: CardResult, tags: list[str] | None = None) -> None:
+    """既習カードに初期間隔の下駄を履かせる。**Anki 側でまだ新規のカードだけ**が対象。
+
+    復習が始まったカードを触ると間隔を書き換えてしまうので、type == 0 で絞る。
+    ここでの失敗はカード自体の失敗ではない（ノートは入っている）ので、detail に残すだけにする。
+    """
+    if not card.known:
+        return
+    days = config.KNOWN_INTERVALS[card.known]
+    try:
+        infos = connect.cards_info(connect.find_cards(f"nid:{note_id}"))
+        new_cards = [int(info["cardId"]) for info in infos if info.get("type", 0) == 0]
+        if not new_cards:
+            return  # 既に復習が始まっている。履歴を尊重して何もしない。
+        connect.set_due_date(new_cards, days)
+        if tags is not None and _known_tag(card.known) not in tags:
+            connect.add_tags([note_id], _known_tag(card.known))
+        result.known_days = days
+    except connect.AnkiConnectError as exc:
+        result.detail = f"既習の初期間隔を設定できませんでした: {exc}"
