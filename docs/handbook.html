@@ -745,27 +745,37 @@ uv run ankikit approve &lt;slug&gt;      <span class="c"># main へ --no-ff マ�
 uv run ankikit push --deck &lt;slug&gt;  <span class="c"># ここで初めて Anki に入る</span>
 uv run ankikit status &lt;slug&gt; --write <span class="c"># README の学習状況を更新（任意）</span></div>
 
-      <h3>一覧</h3>
+      <h3>コマンド → 意味（早見表）</h3>
+      <p class="prose"><code>&lt;…&gt;</code> は必須、<code>[…]</code> は省略可。<b>頭に <code>uv run</code> を付けて叩く</b>（<code>uv run ankikit push</code>）。</p>
+
+      <h4>カードを扱う — <code>decks/</code> のあるリポジトリで</h4>
       <div class="tw"><table>
-        <thead><tr><th>コマンド</th><th>用途</th><th>主なオプション</th></tr></thead>
+        <thead><tr><th>コマンド</th><th>意味（叩くと何が起きるか）</th><th>主なオプション</th></tr></thead>
         <tbody>
-          <tr><td class="k"><code>decks</code></td><td>デッキ一覧・枚数・未マージ枚数・Anki 側の有無</td><td>—</td></tr>
-          <tr><td class="k"><code>status [slug]</code></td><td>学習状況のまとめ（ファイル側 ＋ Anki 側）</td><td><code>--write</code>（README に書き戻す）</td></tr>
-          <tr><td class="k"><code>new &lt;slug&gt;</code></td><td>デッキの雛形作成</td><td><code>--anki-deck "親::子"</code> <code>--note-type basic|cloze</code></td></tr>
-          <tr><td class="k"><code>stage &lt;slug&gt;</code></td><td><code>staging/&lt;slug&gt;</code> に切り替え</td><td>—</td></tr>
-          <tr><td class="k"><code>lint</code></td><td>書式チェック（作業ツリー）</td><td><code>--deck &lt;slug&gt;</code></td></tr>
-          <tr><td class="k"><code>pending</code></td><td>まだ main に無いカードを一覧</td><td><code>--deck &lt;slug&gt;</code></td></tr>
-          <tr><td class="k"><code>approve [slug]</code></td><td>staging を main に <code>--no-ff</code> マージ（＝承認）</td><td><code>--branch &lt;name&gt;</code></td></tr>
-          <tr><td class="k"><code>push</code></td><td>承認済みのカードを Anki へ反映</td><td><code>--deck</code> <code>--dry-run</code> <code>--force</code> <code>-v</code> <code>--worktree</code></td></tr>
-          <tr><td class="k"><code>eng &lt;file.json&gt;</code></td><td>英単語 JSON をカードにして Anki まで（<a href="#eng">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
-          <tr><td class="k"><code>install</code></td><td>スキルをこのリポジトリに配置</td><td><code>--list</code> <code>--force</code></td></tr>
-          <tr><td class="k"><code>update</code></td><td>ankikit 自身を最新にする（<a href="#updating">詳細</a>）</td><td><code>--dry-run</code> <code>--force</code> <code>--no-install</code> <code>--target</code></td></tr>
-          <tr><td class="k"><code>change-version &lt;版&gt;</code></td><td>ankikit のバージョンを指定して入れ替える</td><td><code>--list</code> <code>--dry-run</code> <code>--force</code> <code>--no-install</code> <code>--target</code></td></tr>
-          <tr><td class="k"><code>doctor</code></td><td>Anki 接続とノートタイプ名の確認</td><td>—</td></tr>
+          <tr><td class="k"><code>decks</code></td><td>デッキを一覧する。枚数・未承認の枚数・Anki 側にそのデッキがあるか</td><td>—</td></tr>
+          <tr><td class="k"><code>status [slug]</code></td><td>学習状況を出す。ファイル側の枚数と Anki 側の新規／復習の内訳</td><td><code>--write</code>（README の status ブロックに書き戻す）</td></tr>
+          <tr><td class="k"><code>new &lt;slug&gt;</code></td><td>デッキの雛形（<code>decks/&lt;slug&gt;/</code> と README）を作る</td><td><code>--anki-deck "親::子"</code> <code>--note-type basic|cloze</code></td></tr>
+          <tr><td class="k"><code>stage &lt;slug&gt;</code></td><td><code>staging/&lt;slug&gt;</code> に切り替える（無ければ main から作る）。<b>カードを書く前に叩く</b></td><td>—</td></tr>
+          <tr><td class="k"><code>lint</code></td><td>作業ツリーのカードファイルの書式を検査する。<b>コミット前に 0 件を確認する</b></td><td><code>--deck &lt;slug&gt;</code></td></tr>
+          <tr><td class="k"><code>pending</code></td><td>書いたが main にまだ無い（＝未承認で Anki に入らない）カードを一覧する</td><td><code>--deck &lt;slug&gt;</code></td></tr>
+          <tr><td class="k"><code>approve [slug]</code></td><td>staging を main に <code>--no-ff</code> マージする。<b>これが承認そのもの</b></td><td><code>--branch &lt;name&gt;</code></td></tr>
+          <tr><td class="k"><code>push</code></td><td>main にあるカードを Anki へ入れる。<b>Anki が起動している必要がある</b></td><td><code>--deck</code> <code>--dry-run</code> <code>--force</code> <code>-v</code> <code>--worktree</code></td></tr>
+          <tr><td class="k"><code>eng &lt;file.json&gt;</code></td><td>英単語 JSON を検証 → カード化 → コミット → Anki まで一気に（<a href="#eng">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
+        </tbody>
+      </table></div>
+
+      <h4>道具を扱う — カードには触らない</h4>
+      <div class="tw"><table>
+        <thead><tr><th>コマンド</th><th>意味（叩くと何が起きるか）</th><th>主なオプション</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>install</code></td><td>同梱スキル（<code>/anki-grill</code> <code>/anki-initialize</code>）を <code>.claude/skills/</code> に配る</td><td><code>--list</code> <code>--force</code> <code>--target</code> <code>--agent</code></td></tr>
+          <tr><td class="k"><code>update</code></td><td>ankikit 自身を最新にして、スキルも配り直す（<a href="#updating">詳細</a>）</td><td><code>--dry-run</code> <code>--force</code> <code>--no-install</code> <code>--target</code></td></tr>
+          <tr><td class="k"><code>change-version [版]</code></td><td>使う ankikit のバージョンを固定／解除する（タグ・ブランチ・コミット・<code>latest</code>）</td><td><code>--list</code> <code>--dry-run</code> <code>--force</code> <code>--no-install</code> <code>--target</code></td></tr>
+          <tr><td class="k"><code>doctor</code></td><td>AnkiConnect につながるか、<code>anki.toml</code> のノートタイプ名が実在するかを見る</td><td>—</td></tr>
         </tbody>
       </table></div>
       <p class="note"><b>全コマンド共通:</b> <code>--ref &lt;branch&gt;</code> で「承認済みとみなすブランチ」を変えられる（既定 <code>main</code>）。<br>
-      <b><code>decks/</code> が無くても走る</b>のは <code>new</code> <code>install</code> <code>update</code> <code>change-version</code> <code>doctor</code> の 5 つだけ。他は <code>decks/</code> を見つけられないと理由を言って止まる。</p>
+      <b><code>decks/</code> が無くても走る</b>のは <code>new</code> <code>install</code> <code>update</code> <code>change-version</code> <code>doctor</code> の 5 つだけ。他は <code>decks/</code> を見つけられないと、どこを見たかを言って止まる。</p>
       <p class="note note--warn"><code>push --worktree</code> は<b>承認を無視して</b>作業ツリーを送る非常口。これを使うと「Anki にあるもの ＝ main にあるもの」が崩れる。通常は使わない。</p>
     </section>
 
