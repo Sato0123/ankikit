@@ -388,7 +388,7 @@ uv add "ankikit @ git+https://github.com/Sato0123/ankikit"</div>
         <li><span class="step-n">3</span><div class="step-b">
           <h3>スキルを置く</h3>
           <div class="cmd">uv run ankikit install</div>
-          <p><code>/anki-grill</code> と <code>/anki-initialize</code> が <code>.claude/skills/</code> に入る。スキルの正はパッケージの中（<code>src/ankikit/skills/</code>）なので、<b>道具を更新したら <code>install</code> を叩き直す</b>と最新になる。手で直したスキルは <code>--force</code> が無ければ上書きされない。</p>
+          <p><code>/anki-grill</code> と <code>/anki-initialize</code> が <code>.claude/skills/</code> に入る。スキルの正はパッケージの中（<code>src/ankikit/skills/</code>）なので、<b>道具を更新したら配り直す</b>必要がある。以降は <a href="#updating"><code>ankikit update</code></a> が入れ替えと配り直しをまとめてやる。手で直したスキルは <code>--force</code> が無ければ上書きされない。</p>
         </div></li>
         <li><span class="step-n">4</span><div class="step-b">
           <h3>つながっているか見る</h3>
@@ -759,12 +759,44 @@ uv run ankikit status &lt;slug&gt; --write <span class="c"># README の学習状
           <tr><td class="k"><code>push</code></td><td>承認済みのカードを Anki へ反映</td><td><code>--deck</code> <code>--dry-run</code> <code>--force</code> <code>-v</code> <code>--worktree</code></td></tr>
           <tr><td class="k"><code>eng &lt;file.json&gt;</code></td><td>英単語 JSON をカードにして Anki まで（<a href="#eng">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
           <tr><td class="k"><code>install</code></td><td>スキルをこのリポジトリに配置</td><td><code>--list</code> <code>--force</code></td></tr>
+          <tr><td class="k"><code>update</code></td><td>ankikit 自身を最新にする（<a href="#updating">詳細</a>）</td><td><code>--dry-run</code> <code>--force</code> <code>--no-install</code> <code>--target</code></td></tr>
+          <tr><td class="k"><code>change-version &lt;版&gt;</code></td><td>ankikit のバージョンを指定して入れ替える</td><td><code>--list</code> <code>--dry-run</code> <code>--force</code> <code>--no-install</code> <code>--target</code></td></tr>
           <tr><td class="k"><code>doctor</code></td><td>Anki 接続とノートタイプ名の確認</td><td>—</td></tr>
         </tbody>
       </table></div>
       <p class="note"><b>全コマンド共通:</b> <code>--ref &lt;branch&gt;</code> で「承認済みとみなすブランチ」を変えられる（既定 <code>main</code>）。<br>
-      <b><code>decks/</code> が無くても走る</b>のは <code>new</code> <code>install</code> <code>doctor</code> の 3 つだけ。他は <code>decks/</code> を見つけられないと理由を言って止まる。</p>
+      <b><code>decks/</code> が無くても走る</b>のは <code>new</code> <code>install</code> <code>update</code> <code>change-version</code> <code>doctor</code> の 5 つだけ。他は <code>decks/</code> を見つけられないと理由を言って止まる。</p>
       <p class="note note--warn"><code>push --worktree</code> は<b>承認を無視して</b>作業ツリーを送る非常口。これを使うと「Anki にあるもの ＝ main にあるもの」が崩れる。通常は使わない。</p>
+    </section>
+
+    <!-- ══ 道具の更新 ══ -->
+    <section id="updating" data-title="道具の更新">
+      <h2>道具を新しくする</h2>
+      <p class="prose">カード側は <code>ankikit</code> を <b>git 依存として固めた時点のまま</b>使っている。道具を直しても、こちらから取り直さないかぎり古いままで、<b>スキル（<code>/anki-grill</code> など）はさらに <code>install</code> を叩き直すまで入れ替わらない</b>。<code>ankikit update</code> はその 2 つをまとめてやる。</p>
+
+      <div class="cmd">uv run ankikit update              <span class="c"># 最新を取り直して、スキルも配り直す</span>
+uv run ankikit update --dry-run    <span class="c"># 何を叩くかだけ見る（何も変えない）</span>
+uv run ankikit update --force      <span class="c"># 手で直したスキルも上書きする</span></div>
+      <p class="note">中でやっているのは <code>uv lock --upgrade-package ankikit</code> → <code>uv sync</code> → <code>uv run ankikit install</code> の 3 つ。最後が<b>子プロセス</b>なのは、入れ替えた直後の自分自身にはまだ<b>古いスキルが載っている</b>から。走り終わると、どのコミットからどのコミットへ動いたかが出る。</p>
+
+      <h3>バージョンを選ぶ — <code>change-version</code></h3>
+      <p class="prose">新しい道具で挙動が変わったときに、<b>いつでも戻せる</b>ようにするためのもの。タグ・ブランチ・コミットのどれでも渡せる。</p>
+      <div class="cmd">uv run ankikit change-version --list   <span class="c"># 取得元にあるタグとブランチを見る</span>
+uv run ankikit change-version v0.2.0  <span class="c"># そのタグに固定する</span>
+uv run ankikit change-version 3e3a566 <span class="c"># そのコミットに固定する</span>
+uv run ankikit change-version latest  <span class="c"># 固定をやめて最新に追従する</span></div>
+      <p class="note note--warn"><b>固定している間は <code>update</code> が動かない。</b>固定を黙って外して最新に飛ばす方が危ないので、理由（<code>tag=…</code> / <code>rev=…</code>）を言って止まる。最新に戻すのは <code>change-version latest</code>。</p>
+
+      <div class="tw" style="margin-top:16px"><table>
+        <thead><tr><th><code>pyproject.toml</code> の書き方</th><th><code>update</code> の挙動</th></tr></thead>
+        <tbody>
+          <tr><td class="k"><code>{ git = "…" }</code></td><td>既定ブランチの最新へ。<b>これが普通</b></td></tr>
+          <tr><td class="k"><code>{ git = "…", branch = "…" }</code></td><td>そのブランチの最新へ</td></tr>
+          <tr><td class="k"><code>{ git = "…", tag = "…" }</code> / <code>rev = "…"</code></td><td>動かない。<code>change-version</code> で外す</td></tr>
+          <tr><td class="k"><code>{ path = "../Anki", editable = true }</code></td><td>入れ替えるものが無い（直したそばから効く）。スキルの配り直しだけ走る</td></tr>
+        </tbody>
+      </table></div>
+      <p class="note">カードには一切触らない。触るのはカード側の <code>pyproject.toml</code> / <code>uv.lock</code> / <code>.claude/skills/</code> の 3 つだけで、<b><code>decks/</code> は読みもしない</b>。</p>
     </section>
 
     <!-- ══ 困ったとき ══ -->

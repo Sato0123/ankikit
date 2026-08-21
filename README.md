@@ -73,11 +73,27 @@ uv run ankikit eng words.json     ← 検証 → 重複除外 → decks/ に追�
 カード側では `uv run ankikit ...` がそのまま動く。`config.find_repo_root()` がカレントから上へ
 `anki.toml` / `decks/` を探すので、環境変数は要らない。
 
+## 道具を新しくする
+
+カード側は依存として固めた時点の ankikit を使っているので、この道具を直しても向こうは古いまま。
+**カード側で** `update` を叩くと、パッケージの取り直しとスキルの配り直しが一度に走る。
+
+```bash
+uv run ankikit update                 # 最新にする（スキルも配り直す）
+uv run ankikit update --dry-run       # 何を叩くかだけ見る
+uv run ankikit change-version --list  # 選べるタグとブランチ
+uv run ankikit change-version v0.2.0  # そのバージョンに固定する
+uv run ankikit change-version latest  # 固定をやめて最新に追従する
+```
+
+固定している間は `update` が動かない（黙って固定を外さないため）。戻すのは `change-version latest`。
+
 ## この道具を直すとき
 
 ```
 src/ankikit/           parser → deck → sync → connect、承認判定は approval
 src/ankikit/vocab.py   英単語 JSON の検証と空欄化（ankikit eng の中身）
+src/ankikit/selfupdate.py  カード側の pyproject/uv を触って自分自身を入れ替える
 src/ankikit/commands/  サブコマンド 1 つ = ファイル 1 つ
 src/ankikit/skills/    スキルの正（ankikit install が配る）
 docs/handbook.html     手順書。main に push すると GitHub Pages に出る

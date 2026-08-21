@@ -21,6 +21,7 @@
 | `src/ankikit/` | ライブラリ層（`parser` → `deck` → `sync` → `connect`、承認判定は `approval`） |
 | `src/ankikit/config.py` | カードの置き場の決定（`find_repo_root`）とノートタイプ設定 |
 | `src/ankikit/vocab.py` | 英単語 JSON の検証・例文の空欄化・重複キー（`ankikit eng` の中身） |
+| `src/ankikit/selfupdate.py` | カード側の `pyproject.toml` / `uv` を触って ankikit 自身を入れ替える（`update` / `change-version`） |
 | `src/ankikit/commands/` | サブコマンド 1 つ = 1 モジュール。`cli.py` は組み立てるだけ |
 | `src/ankikit/skills/` | **スキルの正。** `ankikit install` がここからカード側へ配る |
 | `decks/README.md` | カードファイルの記法・既習カード（`known:`）・`notes/`・承認フロー（仕様であって、カードではない） |
@@ -50,6 +51,8 @@ uv run ankikit push --deck <slug> # 反映（main の内容のみ・Anki 起動�
 uv run ankikit eng <file.json>    # 英単語 JSON → カード → コミット → Anki（一気通貫）
 uv run ankikit new <slug>         # デッキの雛形作成
 uv run ankikit install            # スキルをこのリポジトリに配置（カード側で叩く）
+uv run ankikit update             # ankikit 自身を最新にする（カード側で叩く）
+uv run ankikit change-version v0.2.0  # バージョンを固定する（latest で固定を外す）
 uv run ankikit doctor             # 接続とノートタイプ名の確認
 uv run pytest                     # テスト
 ```
@@ -81,6 +84,21 @@ uv run pytest                     # テスト
   （`--strict` で全止め）。致命的（ファイル / JSON 自体が壊れている）だけ 2
 - push するのは **main 上のときだけ**。他のブランチでは `--no-push` を要求して、
   「Anki にあるもの = main にあるもの」を保つ
+
+## 道具自身の入れ替え（`update` / `change-version`）
+
+カード側は ankikit を git 依存として固めた時点のまま使う。**道具を直しても向こうは古い。**
+`ankikit update` が `uv lock --upgrade-package` → `uv sync` → `uv run ankikit install` を順に叩いて、
+パッケージとスキルの両方を新しくする。`change-version <tag|branch|sha|latest>` は取得元のピンを張り替える。
+
+- **最後の `install` は必ず子プロセス（`uv run ankikit install`）で叩く。** 入れ替えた直後の自分自身には
+  **古いパッケージが読み込まれたまま**なので、その場で `install.run()` を呼ぶと古いスキルを配ってしまう
+- `tag` / `rev` で固定されているときの `update` は**動かずに理由を言って止まる**。黙って固定を外して
+  最新へ飛ばす方が危ない。外すのは `change-version latest`
+- `uv add` に渡す形は `ankikit @ git+<url>` ＋ `--tag` / `--branch` / `--rev`。
+  どれを渡すかは `git ls-remote` の結果で決める（読めなければコミット扱い）
+- `path` 参照（開発中の editable）のときは入れ替えるものが無いので、スキルの配り直しだけ走る
+- 触るのはカード側の `pyproject.toml` / `uv.lock` / `.claude/skills/` だけ。`decks/` は読まない
 
 ## 既習カード（`known:`）と `notes/`
 

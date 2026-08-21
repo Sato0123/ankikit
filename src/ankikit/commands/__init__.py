@@ -13,9 +13,37 @@
 
 from __future__ import annotations
 
-from . import approve, decks, doctor, eng, install, lint, new, pending, push, stage, status
+from . import (
+    approve,
+    change_version,
+    decks,
+    doctor,
+    eng,
+    install,
+    lint,
+    new,
+    pending,
+    push,
+    stage,
+    status,
+    update,
+)
 
 # --help に出る順番でもある。
-ALL = [decks, status, lint, pending, stage, approve, push, eng, new, install, doctor]
+ALL = [
+    decks,
+    status,
+    lint,
+    pending,
+    stage,
+    approve,
+    push,
+    eng,
+    new,
+    install,
+    update,
+    change_version,
+    doctor,
+]
 
 __all__ = ["ALL"]
