@@ -14,6 +14,10 @@
 #   front = "Text"
 #   back  = "Back Extra"
 
+# `ankikit word` に --deck も JSON の "deck" も無いときに使うデッキ。
+# [word]
+# deck = "english-vocab"
+
 [note_types.basic]
 model = "基本"
 front = "表面"

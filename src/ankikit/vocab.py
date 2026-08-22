@@ -1,14 +1,15 @@
-"""英単語 JSON（`ankikit eng` の入力）を読んで、カードの材料に変換する。
+"""用語・単語の JSON（`ankikit word` の入力）を読んで、カードの材料に変換する。
 
-本から手で打ち込むことを前提にした形式なので、**壊れた入力でも直せる情報を返す**のがこの
-モジュールの仕事。致命的な問題（ファイルが読めない・JSON として壊れている）だけ例外にして、
+手で打ち込む / 会話から書き起こすことを前提にした形式なので、**壊れた入力でも直せる情報を返す**のが
+このモジュールの仕事。致命的な問題（ファイルが読めない・JSON として壊れている）だけ例外にして、
 1 件ごとの不備は `Issue` に貯めて残りは通す。
 
 入力（配列だけでも、設定つきのオブジェクトでも受ける）:
 
     [
       {"word": "anyway", "sentence": "Let's try anyway.", "meaning": "とにかく"},
-      {"word": "circle back", "sentence": "She ____ back to me later.", "note": "p.42"}
+      {"word": "circle back", "sentence": "She ____ back to me later.", "note": "p.42"},
+      {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"}
     ]
 
     {
@@ -17,9 +18,13 @@
       "words": [ ... ]
     }
 
-`sentence` に `____`（アンダースコア 3 つ以上）があればそこが空欄。無ければ `word` を
-文中から探して空欄にする（`circle` → `circled` のような素直な語形変化までは追う）。
-見つからなければそのエントリはエラーにする。答えが表面に出たカードは無価値なため。
+**カードの形は `sentence` があるかで決まる。**
+
+- あり（穴埋め）: `sentence` に `____`（アンダースコア 3 つ以上）があればそこが空欄。無ければ `word` を
+  文中から探して空欄にする（`circle` → `circled` のような素直な語形変化までは追う）。
+  見つからなければそのエントリはエラーにする。答えが表面に出たカードは無価値なため。
+- なし（Q/A）: `## <用語> とは？` / `A: <meaning>` の素の問答にする。概念や日本語の用語は
+  例文に埋めても想起のきっかけにならないので、`meaning` があれば例文は要らない。
 """
 
 from __future__ import annotations
@@ -45,6 +50,8 @@ ALIASES: dict[str, str] = {
     "note": "note", "メモ": "note", "備考": "note", "出典": "note",
 }
 ENTRY_KEYS = ("word", "sentence", "meaning", "note")
+# 例文が無いときの表面。用語カードは「その語が何を指すか」だけを聞く。
+QUESTION = "{word} とは？"
 LIST_KEYS = ("words", "entries", "cards", "単語", "リスト")
 
 # JSON を手打ちしたときに踏みやすい地雷。読めなかったときのヒントに使う。
@@ -75,11 +82,12 @@ class Entry:
     """カード 1 枚分。front/back は組み立て済みで、あとは Markdown にするだけ。"""
 
     word: str
-    front: str  # 空欄化した例文
-    sentence: str  # 空欄を埋め戻した完全な例文
+    front: str  # 空欄化した例文（Q/A なら「<用語> とは？」）
+    sentence: str  # 空欄を埋め戻した完全な例文（Q/A では空）
     meaning: str = ""
     note: str = ""
     index: int = 0
+    kind: str = "blank"  # blank（例文の穴埋め）/ qa（用語 → 意味）
 
     @property
     def key(self) -> str:
@@ -107,21 +115,43 @@ class Loaded:
 def word_key(word: str) -> str:
     """重複判定に使うキー。大小・記号・アクセントの揺れを潰す。
 
-    `Circle Back` も `circle-back` も同じ `circle-back` になる。英字が 1 つも残らない
-    語（記号だけ等）はハッシュに落として、少なくとも同じ語同士は必ずぶつかるようにする。
+    `Circle Back` も `circle-back` も同じ `circle-back` になる。
+
+    **ラテン文字だけでできた語の結果は変えない。** このキーはそのまま `word::<key>` タグになって
+    Anki 側に残っているので、正規化を変えると既存カード（`english-vocab`）とキーがずれて重複が流れ込む。
+
+    ラテン文字以外を含む語（`冪等性`）は、以前は英数字が 1 つも残らずハッシュ（`x-3f2a1b9c`）に
+    落ちていた。完全一致の重複は防げていたが、タグが読めない。そこだけ文字を落とさずに残す
+    （`word::冪等性`）。**表記の揺れまでは吸収できない**ので `冪等性` と `べき等性` は別の語になる。
+    記号だけの語は行き場が無いので従来どおりハッシュ。
     """
     text = unicodedata.normalize("NFKD", word).strip().lower()
     text = "".join(c for c in text if not unicodedata.combining(c))
-    key = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+    if text.isascii():
+        key = re.sub(r"[^a-z0-9]+", "-", text).strip("-")
+        if key:
+            return key
+
+    # タグに使うので、空白と記号（`::` を作る `:` を含む）は残せない。文字だけ拾って `-` で繋ぐ。
+    folded = unicodedata.normalize("NFKC", word).strip().lower()
+    joined = "".join(c if c.isalnum() or c == "_" else "-" for c in folded)
+    key = re.sub(r"-+", "-", joined).strip("-")
     return key or "x-" + hashlib.sha1(word.strip().lower().encode("utf-8")).hexdigest()[:8]
 
 
 def _forms(word: str) -> list[str]:
-    """例文中で探す語形。先頭語だけを変化させる（`circle back` → `circled back`）。"""
+    """例文中で探す語形。先頭語だけを変化させる（`circle back` → `circled back`）。
+
+    **効くのは英語（ASCII）の語だけ。** 規則はすべて英語の綴りのものなので、日本語などの語には
+    当てない（当ててもゴミの語形が増えるだけで、当たることは無い）。他言語で例文を空欄にしたい
+    ときは、例文側に `____` を書く。
+    """
     tokens = word.split()
     if not tokens:
         return []
     head, rest = tokens[0], tokens[1:]
+    if not head.isascii():
+        return [word]
     low = head.lower()
 
     forms = [head]
@@ -241,10 +271,32 @@ def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
     sentence = fields.get("sentence", "")
     label = word or sentence[:20]
 
-    missing = [k for k in ("word", "sentence") if not fields.get(k)]
-    if missing:
-        issues.append(Issue("error", f"{' と '.join(missing)} が空です", index, label))
+    if not word:
+        issues.append(Issue("error", "word が空です", index, label))
         return None
+
+    # 例文が無ければ Q/A カード。意味まで無いと裏面が空になるので、そこだけは要る。
+    if not sentence:
+        if not fields.get("meaning"):
+            issues.append(
+                Issue(
+                    "error",
+                    "sentence（例文）か meaning（意味）のどちらかは要ります。"
+                    "例文があれば穴埋め、無ければ「<用語> とは？」の問答になります",
+                    index,
+                    label,
+                )
+            )
+            return None
+        return Entry(
+            word=word,
+            front=QUESTION.format(word=word),
+            sentence="",
+            meaning=fields["meaning"],
+            note=fields.get("note", ""),
+            index=index,
+            kind="qa",
+        )
 
     blanked = blank_out(sentence, word)
     if blanked is None:
@@ -357,16 +409,19 @@ def dedupe(entries: list[Entry], known: set[str]) -> tuple[list[Entry], list[Iss
 def to_markdown(entry: Entry, extra_tags: list[str] | None = None) -> str:
     """decks/<slug>/cards/*.md の記法に落とす（parser がそのまま読める形）。
 
-        ## Let's try ____ anyway.
-        A: anyway
-        とにかく、いずれにせよ
-        Let's try anyway.
+        ## Let's try ____ anyway.        ## 冪等性 とは？
+        A: anyway                        A: 同じ操作を何度実行しても結果が変わらない性質
+        とにかく、いずれにせよ            <出典メモ>
+        Let's try anyway.                tags: word::冪等性
         tags: word::anyway
     """
-    back = [entry.word]
-    if entry.meaning:
-        back.append(entry.meaning)
-    back.append(entry.sentence)
+    if entry.kind == "qa":
+        back = [entry.meaning]
+    else:
+        back = [entry.word]
+        if entry.meaning:
+            back.append(entry.meaning)
+        back.append(entry.sentence)
     if entry.note:
         back.append(entry.note)
 
@@ -377,5 +432,5 @@ def to_markdown(entry: Entry, extra_tags: list[str] | None = None) -> str:
 
 def render(entries: list[Entry], extra_tags: list[str] | None = None, source: str | None = None) -> str:
     """カードファイルに追記する塊を作る。"""
-    header = f"<!-- ankikit eng: {source} -->\n\n" if source else ""
+    header = f"<!-- ankikit word: {source} -->\n\n" if source else ""
     return header + "\n\n".join(to_markdown(e, extra_tags) for e in entries) + "\n"

@@ -1,4 +1,4 @@
-"""英単語 JSON（`ankikit eng` の入力）の読み込みと検証。
+"""用語・単語 JSON（`ankikit word` の入力）の読み込みと検証。
 
 手打ち前提の形式なので、**壊れた入力でどう転ぶか**のテストが本体。
 """
@@ -12,6 +12,7 @@ import pytest
 from ankikit.parser import parse_text
 from ankikit.vocab import (
     BLANK,
+    _forms,
     Entry,
     VocabError,
     blank_out,
@@ -64,6 +65,17 @@ def test_語形変化を追って空欄にする():
 )
 def test_素直な語形変化はカバーする(word, sentence, surface):
     assert blank_out(sentence, word).surface == surface
+
+
+def test_日本語の語には英語の活用を当てない():
+    # 「冪等性s」「冪等性ing」のような語形は探しに行かない（当たることが無いゴミなので）。
+    assert _forms("冪等性") == ["冪等性"]
+    assert "circles" in _forms("circle")
+
+
+def test_日本語の語も例文にあれば空欄にする():
+    loaded = load_text('[{"word": "冪等性", "sentence": "この API は冪等性を持つ。"}]')
+    assert loaded.entries[0].front == f"この API は{BLANK}を持つ。"
 
 
 def test_大文字小文字は無視して探す():
@@ -126,10 +138,16 @@ def test_空の入力は落とす():
         load_text("[]")
 
 
-def test_必須項目が欠けた行だけ落ちる():
+def test_例文も意味も無ければその行だけ落ちる():
     loaded = load_text('[{"word": "anyway"}, {"word": "any", "sentence": "any way"}]')
     assert [e.word for e in loaded.entries] == ["any"]
-    assert "sentence が空です" in levels(loaded, "error")[0]
+    assert "sentence（例文）か meaning（意味）" in levels(loaded, "error")[0]
+
+
+def test_単語が空なら落ちる():
+    loaded = load_text('[{"sentence": "try anyway"}]')
+    assert not loaded.entries
+    assert "word が空です" in levels(loaded, "error")[0]
 
 
 def test_エントリがオブジェクトでなければその行だけ落ちる():
@@ -181,6 +199,46 @@ def test_単語キーは大小と記号の揺れを吸収する():
     assert word_key("Circle Back") == word_key("circle-back") == "circle-back"
 
 
+@pytest.mark.parametrize(
+    "word,key",
+    [
+        ("anyway", "anyway"),
+        ("Circle Back", "circle-back"),
+        ("café", "cafe"),
+        ("TIME_WAIT", "time-wait"),
+        ("don't", "don-t"),
+        ("A/B testing", "a-b-testing"),
+    ],
+)
+def test_ラテン文字だけの語のキーは変えない(word, key):
+    # このキーがそのまま Anki の word:: タグになっている。変えると既存カードとずれて重複が入る。
+    assert word_key(word) == key
+
+
+@pytest.mark.parametrize(
+    "word,key",
+    [
+        ("冪等性", "冪等性"),
+        ("  結果整合性  ", "結果整合性"),
+        ("三方一両損・その2", "三方一両損-その2"),  # 記号は落とす（:: を作らせない）
+        ("ｷｬｯｼｭ", "キャッシュ"),  # 半角カナは NFKC で揃う
+        ("冪等性 (idempotency)", "冪等性-idempotency"),  # 混ざっていれば両方残す
+    ],
+)
+def test_ラテン文字が無い語もタグとして読めるキーになる(word, key):
+    assert word_key(word) == key
+    assert " " not in word_key(word) and ":" not in word_key(word)
+
+
+def test_記号だけの語はハッシュに落ちる():
+    assert word_key("!?").startswith("x-")
+
+
+def test_表記の揺れまでは吸収しない():
+    # 辞書が無いと直せない。別の語として 2 枚入る。
+    assert word_key("冪等性") != word_key("べき等性")
+
+
 def test_既にデッキにある単語は飛ばして残りは通す():
     loaded = load_text(
         '[{"word": "anyway", "sentence": "try anyway"},'
@@ -220,6 +278,20 @@ def test_出力したMarkdownはparserがそのまま読める():
 def test_意味とメモが無ければ裏面は単語と例文だけ():
     entry = Entry(word="anyway", front="try ____.", sentence="try anyway.")
     assert to_markdown(entry) == "## try ____.\nA: anyway\ntry anyway.\ntags: word::anyway"
+
+
+def test_例文が無ければ用語の問答カードになる():
+    loaded = load_text(
+        '[{"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質", "note": "p.42"}]'
+    )
+    entry = loaded.entries[0]
+    assert entry.kind == "qa"
+    parsed = parse_text(render(loaded.entries))
+    assert parsed.errors == []
+    card = parsed.cards[0]
+    assert card.front == "冪等性 とは？"
+    assert card.back == "同じ操作を何度実行しても結果が変わらない性質\np.42"
+    assert card.tags == ["word::冪等性"]
 
 
 def test_HTMLコメントは無害化されてparserに消されない():

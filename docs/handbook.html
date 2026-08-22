@@ -5,7 +5,7 @@
   ブラウザで直接開いてもいいし、Artifact として公開してもそのまま動く。
 
   節の順序は「読む人の必要順」で並べてある。書いた順や実装の都合で並べ替えない:
-    概要 → はじめる → 毎日の流れ → スキル → カードの書き方 → 英単語
+    概要 → はじめる → 毎日の流れ → スキル → カードの書き方 → 用語・単語
     → コマンド → 困ったとき → Anki 本体 → 実装メモ（道具を直す人だけ）
 
   書くときの方針:
@@ -412,7 +412,8 @@ uv add "ankikit @ git+https://github.com/Sato0123/ankikit"</div>
           <p class="band-label">branch <span>— 承認なしで進んでよい。Anki には 1 枚も入らない</span></p>
           <ol class="track">
             <li><span class="n">1</span><div><b>デッキを決める</b><p>今日はどのデッキの話か。ここが決まらないと「入れる基準」が決まらず、質問が散る。該当が無ければ <code>/anki-initialize</code> へ。</p></div></li>
-            <li><span class="n">2</span><div><b>振り返る</b><p>そのデッキの方針に沿って、一度に一問ずつ問われる。5〜15 往復。</p></div></li>
+            <li><span class="n">1.5</span><div><b>今日の用語を貼る</b><p>出てきた用語・単語を一覧で貼るだけ。<b>この分だけは掘られず、承認も通らずに main へ直行する</b>（<a href="#word"><code>ankikit word</code></a>）。無ければ飛ばす。</p></div></li>
+            <li><span class="n">2</span><div><b>振り返る</b><p>そのデッキの方針に沿って、一度に一問ずつ問われる。掘られるのは<b>実践判断</b>だけ。5〜15 往復。</p></div></li>
             <li><span class="n">3</span><div><b>カード候補を見る</b><p>5〜10 枚が提示される。要らないものはここで落とす。</p></div></li>
             <li><span class="n">4</span><div><b>ブランチに書いてコミット</b><p><code>stage</code> → <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> → <code>lint</code> → コミット。</p></div></li>
           </ol>
@@ -447,6 +448,7 @@ uv add "ankikit @ git+https://github.com/Sato0123/ankikit"</div>
       </div>
 
       <p class="note note--warn" style="margin-top:20px">手で書きたいときは <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> に直接足して、同じくマージしてから <code>uv run ankikit push</code>。<b>経路が違っても承認ラインは同じ。</b></p>
+      <p class="note" style="margin-top:12px"><b>1.5 だけがこの帯の外を走る。</b> 用語には決まった答えがあるので、問い詰めても新しいものは出てこない。だから面談も承認も通さず、<code>ankikit word</code> が main の上で追記 → コミット → push まで一気にやる。承認の原則は「<b>main 上でしか push しない</b>」という形で残っている（<a href="#word">詳細</a>）。</p>
     </section>
 
     <!-- ══ スキル ══ -->
@@ -460,6 +462,7 @@ uv add "ankikit @ git+https://github.com/Sato0123/ankikit"</div>
         <tbody>
           <tr><td class="k">いつ</td><td>新しいデッキを始めるとき（1 デッキ 1 回）</td><td>学習した日の終わりに毎回</td></tr>
           <tr><td class="k">掘る対象</td><td>まだ何も起きていない領域。<b>知らないことの発見</b></td><td>今日あったこと。<b>詰まった・間違えた・驚いた</b></td></tr>
+          <tr><td class="k">用語・単語</td><td colspan="2">どちらも掘らない。貼った一覧を <a href="#word"><code>ankikit word</code></a> が承認なしで main に入れる</td></tr>
           <tr><td class="k">聞かれ方</td><td>15〜25 個の論点を口頭でテストされる</td><td>今日やったことを一問ずつ掘られる</td></tr>
           <tr><td class="k">カードになるもの</td><td><b>答えられなかったものだけ</b></td><td>詰まった事実・判断の根拠</td></tr>
           <tr><td class="k">裏面を書くのは</td><td><b>モデル</b>（このスキルだけの例外。1 枚ずつ正しさを確認される）</td><td>あなたの言葉をそのまま使う</td></tr>
@@ -647,45 +650,54 @@ tags: [english]           <span class="c"># このデッキの全カードに付
       </table></div>
     </section>
 
-    <!-- ══ 英単語 ══ -->
-    <section id="eng" data-title="英単語（一括登録）">
-      <h2>英単語 — JSON から一気に流し込む</h2>
-      <p class="prose"><code>english-vocab</code> デッキだけは対話も承認面談も通さない。本から拾った単語に「今日どこで詰まった？」と聞く意味は無いので、<b>自分で JSON に打ち込んで <code>ankikit eng</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。</p>
+    <!-- ══ 用語・単語 ══ -->
+    <section id="word" data-title="用語・単語（一括登録）">
+      <h2>用語・単語 — JSON から一気に流し込む</h2>
+      <p class="prose"><b>答えが決まっているものは対話も承認面談も通さない。</b>「TIME_WAIT とは？」「anyway の意味は？」に「今日どこで詰まった？」と聞く意味は無いので、<b>一覧を JSON にして <code>ankikit word</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。<code>/anki-grill</code> の 1.5 節はこれを呼んでいるだけなので、<b>手で叩いても同じ</b>。</p>
 
-      <div class="cmd">uv run ankikit eng words.json            <span class="c"># 検証 → 重複除外 → 追記 → コミット → Anki</span>
-uv run ankikit eng words.json --dry-run  <span class="c"># 何が登録され何が弾かれるかだけ見る</span>
-uv run ankikit eng words.json --tag duo3 <span class="c"># 全カードに出典タグを付ける</span></div>
+      <div class="cmd">uv run ankikit word terms.json --deck sre  <span class="c"># 検証 → 重複除外 → 追記 → コミット → Anki</span>
+uv run ankikit word terms.json --dry-run   <span class="c"># 何が登録され何が弾かれるかだけ見る</span>
+uv run ankikit word terms.json --tag duo3  <span class="c"># 全カードに出典タグを付ける</span>
+uv run ankikit eng words.json              <span class="c"># 別名。既定デッキが english-vocab になるだけ</span></div>
 
-      <p class="note note--warn">承認の原則は形を変えて残っている。<code>eng</code> は <b>main 上でしか push しない</b>ので、「Anki にあるもの ＝ main にあるもの」は崩れない。他のブランチで書くだけなら <code>--no-push</code>。</p>
+      <p class="note note--warn">承認の原則は形を変えて残っている。<code>word</code> は <b>main 上でしか push しない</b>ので、「Anki にあるもの ＝ main にあるもの」は崩れない。他のブランチで書くだけなら <code>--no-push</code>。<b>掘って初めて出てくる実践判断のほう</b>は、これまでどおり面談 → <code>staging/&lt;slug&gt;</code> → 承認を通す。</p>
 
       <h3>入力 JSON</h3>
-      <p class="prose">本から手で打ち込む前提の形式。<b>配列だけでも、設定つきのオブジェクトでも受ける。</b></p>
+      <p class="prose">手で打ち込む / 会話から書き起こす前提の形式。<b>配列だけでも、設定つきのオブジェクトでも受ける。</b></p>
       <div class="cmd">{
+  "deck": "sre",                               <span class="c"># 入れ先（--deck でも指定できる）</span>
   "tags": ["duo3"],                            <span class="c"># 全カードに付くタグ（省略可）</span>
   "words": [
+    {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"},
     {"word": "anyway", "sentence": "Let's try anyway.", "meaning": "とにかく"},
     {"word": "circle back", "sentence": "She circled back to me.", "note": "p.42"},
     {"word": "wake", "sentence": "I ____ up early.", "meaning": "目を覚ます"}
   ]
 }</div>
+      <p class="note">入れ先は <code>--deck</code> → JSON の <code>"deck"</code> → <code>anki.toml</code> の <code>[word] deck</code> の順に決まる。どれも無ければ、どこに入れるか決まらないので止まる。</p>
 
       <div class="tw" style="margin-top:16px"><table>
         <thead><tr><th>キー</th><th>意味</th></tr></thead>
         <tbody>
           <tr><td class="k"><code>word</code> / <code>単語</code></td><td><b>必須。</b>覚えたい語。空欄の答えになる</td></tr>
-          <tr><td class="k"><code>sentence</code> / <code>例文</code></td><td><b>必須。</b>出会った文をそのまま。<code>____</code> を書けばそこが空欄、書かなければ <code>word</code> を文中から探す</td></tr>
-          <tr><td class="k"><code>meaning</code> / <code>意味</code></td><td>日本語の訳。省略可</td></tr>
+          <tr><td class="k"><code>sentence</code> / <code>例文</code></td><td>出会った文をそのまま。<code>____</code> を書けばそこが空欄、書かなければ <code>word</code> を文中から探す。<b>省略すると問答カードになる</b></td></tr>
+          <tr><td class="k"><code>meaning</code> / <code>意味</code></td><td>意味・定義。<b><code>sentence</code> が無いときは必須</b>（裏面になる）</td></tr>
           <tr><td class="k"><code>note</code> / <code>メモ</code></td><td>出典ページや語法メモ。省略可</td></tr>
         </tbody>
       </table></div>
 
       <h3>できあがるカード</h3>
-      <div class="cmd">## Let's try ____.          <span class="c"># 表面 = 例文の該当語を空欄にしたもの</span>
+      <p class="prose"><b>形は <code>sentence</code> があるかで決まる。</b></p>
+      <div class="cmd">## Let's try ____.          <span class="c"># 例文あり → 穴埋め。表面 = 該当語を空欄にした文</span>
 A: anyway                  <span class="c"># 裏面 = 単語 / 意味 / 完全な例文 / メモ</span>
 とにかく
 Let's try anyway.
-tags: word::anyway         <span class="c"># ← 重複判定のキー。消すと同じ単語が二重に入る</span></div>
-      <p class="note">目標は「anyway = とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから表面は単語ではなく例文になっている。</p>
+tags: word::anyway         <span class="c"># ← 重複判定のキー。消すと同じ単語が二重に入る</span>
+
+## 冪等性 とは？           <span class="c"># 例文なし → 問答。表面 = 用語</span>
+A: 同じ操作を何度実行しても結果が変わらない性質   <span class="c"># 裏面 = 意味 / メモ</span>
+tags: word::冪等性</div>
+      <p class="note">英単語で目標なのは「anyway ＝ とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから例文があるほうを既定にしている。一方、概念や日本語の用語は例文に埋めても想起のきっかけにならないので、素の問答でよい。</p>
 
       <h3>空欄化のルール</h3>
       <div class="tw"><table>
@@ -699,9 +711,9 @@ tags: word::anyway         <span class="c"># ← 重複判定のキー。消す�
       </table></div>
 
       <h3>1 件の不備で全体は止まらない</h3>
-      <p class="prose">重複判定はこのデッキだけ<b>単語</b>で行う（他のデッキは表面のハッシュ）。<code>Circle Back</code> と <code>circle-back</code> は同じ語。<b>壊れた行と重複だけ落として、残りはそのまま登録する</b>ので、同じファイルに追記しながら何度流してもよく、直した行だけが後から入る。全部止めたいときは <code>--strict</code>。</p>
+      <p class="prose">重複判定はここだけ<b>単語</b>で行う（面談から作るカードは表面のハッシュ）。<code>Circle Back</code> と <code>circle-back</code> は同じ語。日本語の用語は<b>表記の揺れまでは吸収できない</b>ので <code>冪等性</code> と <code>べき等性</code> は別の語として 2 枚入る。<b>壊れた行と重複だけ落として、残りはそのまま登録する</b>ので、同じファイルに追記しながら何度流してもよく、直した行だけが後から入る。全部止めたいときは <code>--strict</code>。</p>
       <div class="cmd"><span class="c">ERROR [5] woke: 例文に 'woke' が見つからないので空欄にできません。…</span>
-<span class="c">ERROR [6] defer: sentence が空です</span>
+<span class="c">ERROR [6] defer: sentence（例文）か meaning（意味）のどちらかは要ります…</span>
 <span class="c">重複: [4] Anyway: ファイル内の [1] と同じ単語なので飛ばしました</span>
 english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 1 / 不備 2</div>
       <div class="tw" style="margin-top:16px"><table>
@@ -717,13 +729,14 @@ english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 1 / 不備 2<
       <h3>何を入れるか</h3>
       <div class="judge">
         <div class="judge--in"><h4>入れる</h4><ul>
-          <li>読んでいて意味が取れずに止まった語</li>
-          <li>意味は知っていたが、その文での使われ方が意外だった語</li>
+          <li>読んでいて / 会話に出てきて意味が取れずに止まった語</li>
+          <li>意味は知っていたが、その文脈での使われ方が意外だった語</li>
           <li>例文が本文からそのまま取れる語（自作の例文より、出会った文）</li>
+          <li>今日の学習で名前だけ覚えた概念（<code>meaning</code> だけ書けば問答カードになる）</li>
         </ul></div>
         <div class="judge--out"><h4>入れない</h4><ul>
-          <li>例文なしの単語（この形式に載らない）</li>
-          <li>固有名詞、専門用語そのもの</li>
+          <li><b>「この状況でどう動くか」</b>（それは <code>/anki-grill</code> の面談から作る）</li>
+          <li>意味も例文も書けない語（裏面が空になる）</li>
           <li>既にこのデッキにある語（<code>word::</code> タグで自動的に弾かれる）</li>
         </ul></div>
       </div>
@@ -760,7 +773,8 @@ uv run ankikit status &lt;slug&gt; --write <span class="c"># README の学習状
           <tr><td class="k"><code>pending</code></td><td>書いたが main にまだ無い（＝未承認で Anki に入らない）カードを一覧する</td><td><code>--deck &lt;slug&gt;</code></td></tr>
           <tr><td class="k"><code>approve [slug]</code></td><td>staging を main に <code>--no-ff</code> マージする。<b>これが承認そのもの</b></td><td><code>--branch &lt;name&gt;</code></td></tr>
           <tr><td class="k"><code>push</code></td><td>main にあるカードを Anki へ入れる。<b>Anki が起動している必要がある</b></td><td><code>--deck</code> <code>--dry-run</code> <code>--force</code> <code>-v</code> <code>--worktree</code></td></tr>
-          <tr><td class="k"><code>eng &lt;file.json&gt;</code></td><td>英単語 JSON を検証 → カード化 → コミット → Anki まで一気に（<a href="#eng">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
+          <tr><td class="k"><code>word &lt;file.json&gt;</code></td><td>用語・単語 JSON を検証 → カード化 → コミット → Anki まで一気に。承認なし・main 上のみ（<a href="#word">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
+          <tr><td class="k"><code>eng &lt;file.json&gt;</code></td><td><code>word</code> の別名。既定デッキが <code>english-vocab</code> になるだけ</td><td>同上</td></tr>
         </tbody>
       </table></div>
 
@@ -965,7 +979,7 @@ uv run ankikit change-version latest  <span class="c"># 固定をやめて最新
         <thead><tr><th>パス</th><th>役割</th></tr></thead>
         <tbody>
           <tr><td class="k"><code>src/ankikit/</code></td><td>ライブラリ層（<code>parser</code> → <code>deck</code> → <code>sync</code> → <code>connect</code>、承認判定は <code>approval</code>）</td></tr>
-          <tr><td class="k"><code>src/ankikit/vocab.py</code></td><td>英単語 JSON の検証・例文の空欄化・重複キー（<code>ankikit eng</code> の中身）</td></tr>
+          <tr><td class="k"><code>src/ankikit/vocab.py</code></td><td>用語・単語 JSON の検証・例文の空欄化・重複キー（<code>ankikit word</code> の中身）</td></tr>
           <tr><td class="k"><code>src/ankikit/commands/</code></td><td>サブコマンド 1 つ = 1 モジュール。<code>cli.py</code> は組み立てるだけ</td></tr>
           <tr><td class="k"><code>src/ankikit/skills/</code></td><td><b>スキルの正。</b><code>ankikit install</code> がここからカード側へ配る</td></tr>
           <tr><td class="k"><code>decks/README.md</code></td><td>カードファイルの記法（カードそのものではなく仕様）</td></tr>
@@ -982,7 +996,7 @@ uv run ankikit change-version latest  <span class="c"># 固定をやめて最新
       <ul class="plain">
         <li><b>カードの置き場は <code>config.find_repo_root()</code> が決める。</b> <code>ANKI_REPO_ROOT</code> → カレントから上へ <code>anki.toml</code> / <code>decks/</code> を探す → 開発時のパッケージ 2 つ上、の順。<b>依存として入れると 3 番目は site-packages を指すので当てにできない。</b></li>
         <li><code>approval.decks_at(ref)</code> は <code>git archive</code> で ref 時点の <code>decks/</code> を一時展開する。push はそこを読む。<b>一時ディレクトリなので、カードの読み込みは必ず <code>with</code> の中で終わらせる。</b></li>
-        <li>同一カード判定は<b>表面のハッシュ</b>（<code>ankikit-uid::&lt;hash&gt;</code> タグ）。ただし <code>english-vocab</code> だけは<b>単語</b>（<code>word::&lt;単語&gt;</code> タグ）。</li>
+        <li>同一カード判定は<b>表面のハッシュ</b>（<code>ankikit-uid::&lt;hash&gt;</code> タグ）。ただし <code>ankikit word</code> が入れたカードだけは<b>単語</b>（<code>word::&lt;単語&gt;</code> タグ）。</li>
         <li>フィールドは HTML。改行は <code>to_html()</code> で <code>&lt;br&gt;</code> に変換してから送る。行頭の空白は落ちる。</li>
         <li>接続先は <code>ANKI_CONNECT_URL</code>（既定 <code>http://localhost:8765</code>）で差し替えられる。</li>
       </ul>
