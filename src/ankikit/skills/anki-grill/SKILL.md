@@ -69,7 +69,6 @@ uv run ankikit word /tmp/terms-<slug>-<YYYY-MM-DD>.json --deck <slug>
 
 ```json
 {
-  "deck": "<slug>",
   "words": [
     {"word": "TIME_WAIT", "meaning": "接続を閉じた側が最後の ACK の再送に備えて待つ状態"},
     {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"},
@@ -83,6 +82,7 @@ uv run ankikit word /tmp/terms-<slug>-<YYYY-MM-DD>.json --deck <slug>
 - `sentence` があれば例文の穴埋め、無ければ `## <用語> とは？` の問答カードになる
 - 既にデッキにある語は勝手に飛ばされる。重複を気にせず貼ってよい
 - 1 件の不備で全部は止まらない。落ちた行の理由をそのまま見せて、直すか捨てるか聞く
+- **ここで入れた枚数は、3 節の「1 セッション 5〜10 枚」に数えない。** 貼られた分は貼られただけ入れる
 - **この節は main の上で終わらせる。** ブランチに入るのは 4 節から（`word` は main 以外では push を拒む）
 - Anki が起動していなければカードは main に入っている。後で `uv run ankikit push --deck <slug>` と案内して先へ進む
 
