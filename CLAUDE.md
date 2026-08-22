@@ -20,7 +20,7 @@
 |---|---|
 | `src/ankikit/` | ライブラリ層（`parser` → `deck` → `sync` → `connect`、承認判定は `approval`） |
 | `src/ankikit/config.py` | カードの置き場の決定（`find_repo_root`）とノートタイプ設定 |
-| `src/ankikit/vocab.py` | 英単語 JSON の検証・例文の空欄化・重複キー（`ankikit eng` の中身） |
+| `src/ankikit/vocab.py` | 用語・単語 JSON の検証・例文の空欄化・重複キー（`ankikit word` の中身） |
 | `src/ankikit/selfupdate.py` | カード側の `pyproject.toml` / `uv` を触って ankikit 自身を入れ替える（`update` / `change-version`） |
 | `src/ankikit/commands/` | サブコマンド 1 つ = 1 モジュール。`cli.py` は組み立てるだけ |
 | `src/ankikit/skills/` | **スキルの正。** `ankikit install` がここからカード側へ配る |
@@ -48,7 +48,8 @@ uv run ankikit pending            # main に未マージのカード
 uv run ankikit approve <slug>     # main へマージ（＝承認）
 uv run ankikit push --dry-run     # 差分だけ確認
 uv run ankikit push --deck <slug> # 反映（main の内容のみ・Anki 起動が必要）
-uv run ankikit eng <file.json>    # 英単語 JSON → カード → コミット → Anki（一気通貫）
+uv run ankikit word <file.json>   # 用語・単語 JSON → カード → コミット → Anki（承認なし・main 上のみ）
+uv run ankikit eng <file.json>    # word の別名（既定デッキ english-vocab）
 uv run ankikit new <slug>         # デッキの雛形作成
 uv run ankikit install            # スキルをこのリポジトリに配置（カード側で叩く）
 uv run ankikit update             # ankikit 自身を最新にする（カード側で叩く）
@@ -71,19 +72,25 @@ uv run pytest                     # テスト
 見つからないまま走ると「0 件」としか出ず気づけないので、`cli.py` が `decks/` の不在を検出して
 どこを見たかを言って止める（`NEEDS_DECKS = False` のコマンドは除く）。
 
-## 英単語デッキ（`english-vocab`）
+## 用語カード（`ankikit word`）
 
-このデッキだけ対話も承認面談も通さない。JSON を `ankikit eng` に食わせると、検証 → 重複除外 →
-`decks/english-vocab/cards/YYYY-MM-DD.md` に追記 → コミット → push まで一気に走る。
+**答えが決まっているものは対話も承認面談も通さない。** JSON を `ankikit word` に食わせると、
+検証 → 重複除外 → `decks/<slug>/cards/YYYY-MM-DD.md` に追記 → コミット → push まで一気に走る。
+`/anki-grill` の 1.5 節（デッキ特定の直後）がこれを呼ぶ。面談で掘るのは実践判断だけ。
 
-- **重複判定は表面ハッシュではなく単語**。カードに付く `word::<単語>` タグがキーで、
-  `word_key()` が大小・記号・アクセントを潰す（`Circle Back` = `circle-back`）。**このタグを消すと二重に入る**
-- 例文に `____` があればそこが空欄。無ければ `word` を文中から探す（`circle` → `circled` 程度の
-  語形変化は追うが、不規則変化は追えないので `____` を手で書く）。見つからなければそのエントリはエラー
+- 入れ先は `--deck` → JSON の `"deck"` → **別名 `eng` の既定（english-vocab）** → `anki.toml` の
+  `[word] deck` の順。`eng` の既定を汎用設定より先に見るのは、`eng` と打った時点で意図が明らかだから
+- **カードの形は `sentence` の有無で決まる。** あれば例文の穴埋め、無ければ `## <用語> とは？` の問答
+  （`meaning` が裏面。どちらも無ければそのエントリはエラー）
+- **重複判定は表面ハッシュではなく単語**。カードに付く `word::<単語>` タグがキー。**消すと二重に入る**
+- `word_key()` は**ラテン文字だけの語の結果を変えてはいけない**（既存カードのタグとずれて重複が流れ込む）。
+  ASCII に収まらない語だけ、以前のハッシュ（`x-3f2a1b9c`）をやめて文字をそのまま残す（`word::冪等性`）。
+  表記の揺れは吸収できないので `冪等性` と `べき等性` は別の語
+- 例文の語形変化（`circle` → `circled`）を追うのは **ASCII の語だけ**。他言語は書かれた形しか探さない
 - 1 件の不備で全体を止めない。壊れた行と重複だけ落として残りは登録し、終了コードは 1 になる
   （`--strict` で全止め）。致命的（ファイル / JSON 自体が壊れている）だけ 2
 - push するのは **main 上のときだけ**。他のブランチでは `--no-push` を要求して、
-  「Anki にあるもの = main にあるもの」を保つ
+  「Anki にあるもの = main にあるもの」を保つ。**だから grill は stage する前に word を済ませる**
 
 ## 道具自身の入れ替え（`update` / `change-version`）
 

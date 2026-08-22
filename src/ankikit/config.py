@@ -100,18 +100,22 @@ DEFAULTS: dict[str, NoteType] = {
 }
 
 
+def _read_toml(path: Path) -> dict:
+    """anki.toml を読む。無ければ空。壊れていれば ConfigError。"""
+    if not path.is_file():
+        return {}
+    try:
+        with path.open("rb") as fp:
+            return tomllib.load(fp)
+    except (OSError, tomllib.TOMLDecodeError) as exc:
+        raise ConfigError(f"{path} を読めません: {exc}") from exc
+
+
 def load_note_types(path: Path | None = None) -> dict[str, NoteType]:
     """anki.toml の `[note_types]` で DEFAULTS を上書きした表を返す（項目単位で部分指定可）。"""
     path = CONFIG_FILE if path is None else path
     note_types = dict(DEFAULTS)
-    if not path.is_file():
-        return note_types
-
-    try:
-        with path.open("rb") as fp:
-            data = tomllib.load(fp)
-    except (OSError, tomllib.TOMLDecodeError) as exc:
-        raise ConfigError(f"{path} を読めません: {exc}") from exc
+    data = _read_toml(path)
 
     for kind, spec in (data.get("note_types") or {}).items():
         if not isinstance(spec, dict):
@@ -129,6 +133,19 @@ def load_note_types(path: Path | None = None) -> dict[str, NoteType]:
 def note_types() -> dict[str, NoteType]:
     """anki.toml を 1 度だけ読んでキャッシュする。テストでは cache_clear() する。"""
     return load_note_types()
+
+
+def word_default_deck(path: Path | None = None) -> str | None:
+    """`ankikit word` に `--deck` も JSON の "deck" も無いときに使うデッキ（anki.toml の `[word] deck`）。
+
+    用語カードをどのデッキに入れるかはカード側の都合なので、道具側に既定値を持たない。
+    """
+    path = CONFIG_FILE if path is None else path
+    section = _read_toml(path).get("word") or {}
+    if not isinstance(section, dict):
+        raise ConfigError(f"{path}: [word] はテーブルで書いてください")
+    deck = section.get("deck")
+    return str(deck) if deck else None
 
 
 def note_type(kind: str) -> NoteType:

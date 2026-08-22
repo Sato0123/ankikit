@@ -128,22 +128,41 @@ uv run ankikit status <slug> --write  # README の <!-- ankikit:status --> を�
 - 表面を直して push → **別カードとして追加**される。古い方は Anki に残るので手で消す
 - 同じ表面を 2 回書いた → lint がエラーにする
 
-## 英単語デッキだけの近道
+## 用語カードの近道（`ankikit word`）
 
-`english-vocab` は対話ではなく JSON から作る。手で打ち込んだデータに承認面談は要らないので、
-`ankikit eng` が **decks/ への追記・コミット・push までまとめてやる**。
+**答えが決まっているものは対話を通さない。** 用語・単語に「今日どこで詰まった？」と聞いても
+新しいものは出てこないので、JSON を書いて流す。`ankikit word` が **decks/ への追記・コミット・push まで
+まとめてやる**（`/anki-grill` の 1.5 節がこれを呼ぶ）。
 
 ```
-uv run ankikit eng words.json            # 検証 → 重複除外 → 追記 → コミット → Anki
-uv run ankikit eng words.json --dry-run  # 何が登録され何が弾かれるかだけ見る
+uv run ankikit word terms.json --deck sre   # 検証 → 重複除外 → 追記 → コミット → Anki
+uv run ankikit word terms.json --dry-run    # 何が登録され何が弾かれるかだけ見る
+uv run ankikit eng words.json               # 別名。既定デッキが english-vocab になるだけ
 ```
 
-承認の原則は形を変えて残っている。`eng` は **main 上でしか push しない**ので、
+```json
+{
+  "deck": "sre",
+  "tags": ["terms"],
+  "words": [
+    {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"},
+    {"word": "anyway", "sentence": "Let's try anyway.", "meaning": "とにかく"}
+  ]
+}
+```
+
+- **`sentence` があれば穴埋め**（例文の該当語が `____` になる。`____` を自分で書いてもよい）
+- **無ければ `## <用語> とは？` の問答カード**（`meaning` が裏面になる）
+- デッキは `--deck` → JSON の `"deck"` → `anki.toml` の `[word] deck` の順に決まる
+
+承認の原則は形を変えて残っている。`word` は **main 上でしか push しない**ので、
 「Anki にあるもの = main にあるもの」は崩れない（`--no-push` なら他のブランチでも書ける）。
+**掘って初めて出てくる実践判断のほう**は、これまでどおり面談 → `staging/<slug>` → 承認の道を通す。
 
-重複判定はこのデッキだけ**単語**で行い、カードに `word::<単語>` タグが付く。
+重複判定はここだけ**単語**で行い、カードに `word::<単語>` タグが付く。
 重複した語は飛ばして残りは登録するので、同じファイルを追記しながら何度流しても問題ない。
-入力の書式は [`english-vocab/README.md`](english-vocab/README.md)。
+このタグがキーなので**消すと二重に入る**。日本語の用語は表記の揺れまでは吸収できない
+（`冪等性` と `べき等性` は別の語として 2 枚入る）。
 
 ## 承認フロー
 
@@ -171,7 +190,8 @@ uv run ankikit push --deck <slug>  # ここで初めて Anki に入る
 | `uv run ankikit approve <slug>` | staging を main にマージ（＝承認） |
 | `uv run ankikit push --dry-run` | 何が追加・更新されるか確認 |
 | `uv run ankikit push --deck <slug>` | 反映（main の内容のみ） |
-| `uv run ankikit eng <file.json>` | 英単語 JSON をカードにして Anki まで反映 |
+| `uv run ankikit word <file.json>` | 用語・単語 JSON をカードにして Anki まで反映（承認なし・main 上のみ） |
+| `uv run ankikit eng <file.json>` | `word` の別名（既定デッキ english-vocab） |
 | `uv run ankikit new <slug>` | デッキの雛形作成 |
 | `uv run ankikit doctor` | Anki 接続とノートタイプ名の確認 |
 

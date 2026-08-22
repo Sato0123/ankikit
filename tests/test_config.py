@@ -53,6 +53,29 @@ def test_リポジトリのanki_tomlが実際に読める():
     assert set(config.load_note_types()) >= {"basic", "cloze"}
 
 
+# --------------------------------------------------------------------------- [word]
+
+
+def test_wordの既定デッキを読める(tmp_path):
+    path = tmp_path / "anki.toml"
+    path.write_text('[word]\ndeck = "sre"\n', "utf-8")
+    assert config.word_default_deck(path) == "sre"
+
+
+def test_wordの既定デッキが無ければNone(tmp_path):
+    path = tmp_path / "anki.toml"
+    path.write_text('[note_types.basic]\nmodel = "Basic"\n', "utf-8")
+    assert config.word_default_deck(path) is None
+    assert config.word_default_deck(tmp_path / "missing.toml") is None
+
+
+def test_wordがテーブルでなければConfigError(tmp_path):
+    path = tmp_path / "anki.toml"
+    path.write_text('word = "sre"\n', "utf-8")
+    with pytest.raises(config.ConfigError, match="テーブル"):
+        config.word_default_deck(path)
+
+
 # --------------------------------------------------------------------------- ルート探索
 
 
