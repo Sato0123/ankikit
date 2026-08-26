@@ -3,7 +3,9 @@
 英単語デッキを先に作ったのでこの名前が残っている。中身は `word.py` にあり、
 **挙動の違いはデッキが決まらなかったときの最後の砦だけ**。
 
-    uv run ankikit eng words.json          # = uv run ankikit word words.json --deck english-vocab
+`--deck` も JSON の `"deck"` もこの既定より強いので、`eng` と打っても行き先を上書きできる。
+
+    uv run ankikit eng words.json          # 行き先が他で決まらなければ english-vocab
 """
 
 from __future__ import annotations

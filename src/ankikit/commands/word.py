@@ -121,18 +121,22 @@ def _resolve_deck(args: argparse.Namespace, loaded: vocab.Loaded) -> Deck | None
     はっきりしているから。汎用の `[word] deck` にそれを横取りさせない。
     """
     slug = args.deck or loaded.deck or getattr(args, "fallback_deck", None) or config.word_default_deck()
-    available = ", ".join(d.slug for d in load_decks()) or "(なし)"
     if not slug:
         common.error("どのデッキに入れるか決まりません。--deck <slug> を付けるか、JSON に \"deck\" を書いてください")
-        common.error(f"（毎回同じデッキなら anki.toml に [word] deck = \"<slug>\"。利用可能: {available}）")
+        common.error(f"（毎回同じデッキなら anki.toml に [word] deck = \"<slug>\"。利用可能: {_available()}）")
         return None
 
     deck = find_deck(slug)
     if deck is not None:
         return deck
-    common.error(f"デッキ '{slug}' が見つかりません。利用可能: {available}")
+    common.error(f"デッキ '{slug}' が見つかりません。利用可能: {_available()}")
     common.error(f"（作るなら `uv run ankikit new {slug}`）")
     return None
+
+
+def _available() -> str:
+    """エラー文に添えるデッキ一覧。**転んだときにしか呼ばない**（成功パスで走査したくない）。"""
+    return ", ".join(d.slug for d in load_decks()) or "(なし)"
 
 
 def _known_words(cards: list[Card]) -> set[str]:

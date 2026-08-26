@@ -681,23 +681,23 @@ uv run ankikit eng words.json              <span class="c"># 別名。既定デ�
         <tbody>
           <tr><td class="k"><code>word</code> / <code>単語</code></td><td><b>必須。</b>覚えたい語。空欄の答えになる</td></tr>
           <tr><td class="k"><code>sentence</code> / <code>例文</code></td><td>出会った文をそのまま。<code>____</code> を書けばそこが空欄、書かなければ <code>word</code> を文中から探す。<b>省略すると問答カードになる</b></td></tr>
-          <tr><td class="k"><code>meaning</code> / <code>意味</code></td><td>意味・定義。<b><code>sentence</code> が無いときは必須</b>（裏面になる）</td></tr>
+          <tr><td class="k"><code>meaning</code> / <code>意味</code></td><td>意味・定義。<b>例文を空欄にできないときは必須</b>（裏面になる）</td></tr>
           <tr><td class="k"><code>note</code> / <code>メモ</code></td><td>出典ページや語法メモ。省略可</td></tr>
         </tbody>
       </table></div>
 
       <h3>できあがるカード</h3>
-      <p class="prose"><b>形は <code>sentence</code> があるかで決まる。</b></p>
+      <p class="prose"><b>形は例文の該当語を空欄にできたかで決まる。</b></p>
       <div class="cmd">## Let's try ____.          <span class="c"># 例文あり → 穴埋め。表面 = 該当語を空欄にした文</span>
 A: anyway                  <span class="c"># 裏面 = 単語 / 意味 / 完全な例文 / メモ</span>
 とにかく
 Let's try anyway.
 tags: word::anyway         <span class="c"># ← 重複判定のキー。消すと同じ単語が二重に入る</span>
 
-## 冪等性 とは？           <span class="c"># 例文なし → 問答。表面 = 用語</span>
+## 冪等性 とは？           <span class="c"># 空欄にできず → 問答。表面 = 用語</span>
 A: 同じ操作を何度実行しても結果が変わらない性質   <span class="c"># 裏面 = 意味 / メモ</span>
 tags: word::冪等性</div>
-      <p class="note">英単語で目標なのは「anyway ＝ とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから例文があるほうを既定にしている。一方、概念や日本語の用語は例文に埋めても想起のきっかけにならないので、素の問答でよい。</p>
+      <p class="note">英単語で目標なのは「anyway ＝ とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから例文があるほうを既定にしている。一方、概念や日本語の用語は例文に埋めても想起のきっかけにならないので、素の問答でよい。<b>例文を書いても語が文中に見つからなければ、<code>meaning</code> がある限り問答に降りる</b>（「冪等性」に「この API は何度呼んでも同じ結果になる」と添えた場合など）。落ちるのは空欄にできず <code>meaning</code> も無い行だけ。</p>
 
       <h3>空欄化のルール</h3>
       <div class="tw"><table>

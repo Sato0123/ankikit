@@ -18,13 +18,17 @@
       "words": [ ... ]
     }
 
-**カードの形は `sentence` があるかで決まる。**
+**カードの形は空欄にできたかで決まる。**
 
-- あり（穴埋め）: `sentence` に `____`（アンダースコア 3 つ以上）があればそこが空欄。無ければ `word` を
+- 穴埋め: `sentence` に `____`（アンダースコア 3 つ以上）があればそこが空欄。無ければ `word` を
   文中から探して空欄にする（`circle` → `circled` のような素直な語形変化までは追う）。
-  見つからなければそのエントリはエラーにする。答えが表面に出たカードは無価値なため。
-- なし（Q/A）: `## <用語> とは？` / `A: <meaning>` の素の問答にする。概念や日本語の用語は
-  例文に埋めても想起のきっかけにならないので、`meaning` があれば例文は要らない。
+- Q/A: `## <用語> とは？` / `A: <meaning>` の素の問答。例文が無いときはもちろん、
+  **例文はあるが空欄にできなかったとき**もここに降りる（警告は出す）。日本語の語は活用を当てないので
+  書かれた形の完全一致しか探さず、「用語 + 言い換えの一文」だと語が文中に出てこないことが普通にある。
+  そこで行ごと落とすより、答えの決まっている問答として入れるほうがいい。
+
+どちらにもできない（例文で空欄にできず `meaning` も無い）ときだけエラー。答えが表面に出たカードは
+無価値なので、空欄化に失敗した例文をそのまま表面にすることはしない。
 """
 
 from __future__ import annotations
@@ -261,6 +265,21 @@ def _normalize_entry(raw: dict, index: int, issues: list[Issue]) -> dict[str, st
     return fields
 
 
+def _no_card_reason(word: str, sentence: str) -> str:
+    """1 枚も作れなかったときの理由。**逃げ道を必ず 1 つは書く。**"""
+    if not sentence:
+        return (
+            "sentence（例文）か meaning（意味）のどちらかは要ります。"
+            "例文があれば穴埋め、無ければ「<用語> とは？」の問答になります"
+        )
+    return (
+        f"例文に '{word}' が見つからないので空欄にできません。"
+        f"例文側に ____ を書くか、実際の語形を word に書いてください。"
+        f"meaning（意味）を足せば、例文を使わず「<用語> とは？」の問答カードにします"
+        f"（例文: {sentence[:40]}）"
+    )
+
+
 def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
     if not isinstance(raw, dict):
         issues.append(Issue("error", f"エントリはオブジェクト {{...}} で書いてください（{type(raw).__name__} が来ています）", index))
@@ -269,47 +288,40 @@ def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
     fields = _normalize_entry(raw, index, issues)
     word = fields.get("word", "")
     sentence = fields.get("sentence", "")
+    meaning = fields.get("meaning", "")
+    note = fields.get("note", "")
     label = word or sentence[:20]
 
     if not word:
         issues.append(Issue("error", "word が空です", index, label))
         return None
 
-    # 例文が無ければ Q/A カード。意味まで無いと裏面が空になるので、そこだけは要る。
-    if not sentence:
-        if not fields.get("meaning"):
+    # 空欄にできたなら穴埋め。できなければ（例文が無い / 語が文中に見つからない）問答へ降りる。
+    blanked = blank_out(sentence, word) if sentence else None
+    if blanked is None:
+        if not meaning:
+            issues.append(Issue("error", _no_card_reason(word, sentence), index, label))
+            return None
+        if sentence:
             issues.append(
                 Issue(
-                    "error",
-                    "sentence（例文）か meaning（意味）のどちらかは要ります。"
-                    "例文があれば穴埋め、無ければ「<用語> とは？」の問答になります",
+                    "warn",
+                    f"例文に '{word}' が見つからないので、例文は使わず「<用語> とは？」の問答カードにしました"
+                    f"（穴埋めにしたいなら例文側に ____ を書いてください）",
                     index,
                     label,
                 )
             )
-            return None
         return Entry(
             word=word,
             front=QUESTION.format(word=word),
             sentence="",
-            meaning=fields["meaning"],
-            note=fields.get("note", ""),
+            meaning=meaning,
+            note=note,
             index=index,
             kind="qa",
         )
 
-    blanked = blank_out(sentence, word)
-    if blanked is None:
-        issues.append(
-            Issue(
-                "error",
-                f"例文に '{word}' が見つからないので空欄にできません。"
-                f"例文側に ____ を書くか、実際の語形を word に書いてください（例文: {sentence[:40]}）",
-                index,
-                label,
-            )
-        )
-        return None
     if blanked.explicit and leaks(blanked.front, word):
         issues.append(Issue("warn", "空欄の外にも答えが残っています。表面に答えが見えます", index, label))
 
@@ -317,8 +329,8 @@ def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
         word=word,
         front=blanked.front,
         sentence=blanked.front.replace(BLANK, blanked.surface),
-        meaning=fields.get("meaning", ""),
-        note=fields.get("note", ""),
+        meaning=meaning,
+        note=note,
         index=index,
     )
 

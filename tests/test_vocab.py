@@ -92,13 +92,32 @@ def test_複数回出てくる語は全部空欄にする():
     assert "anyway" not in front.lower()
 
 
-def test_見つからない語はエラーになって他は通る():
+def test_見つからない語は意味が無ければエラーになって他は通る():
     loaded = load_text(
         '[{"word": "woke", "sentence": "I get up early."},'
         ' {"word": "anyway", "sentence": "Let\'s try anyway."}]'
     )
     assert [e.word for e in loaded.entries] == ["anyway"]
     assert "空欄にできません" in levels(loaded, "error")[0]
+
+
+def test_空欄にできないエラーは問答という逃げ道も案内する():
+    loaded = load_text('[{"word": "woke", "sentence": "I get up early."}]')
+    assert "meaning（意味）を足せば" in levels(loaded, "error")[0]
+
+
+def test_例文で空欄にできなくても意味があれば問答カードに落ちる():
+    """1.5 節でいちばん踏むパス。用語 + 言い換えの一文だと、語は文中に出てこない。"""
+    loaded = load_text(
+        '[{"word": "冪等性", "sentence": "この API は何度呼んでも同じ結果になる。",'
+        ' "meaning": "同じ操作を何度実行しても結果が変わらない性質"}]'
+    )
+    entry = loaded.entries[0]
+    assert entry.kind == "qa"
+    assert entry.front == "冪等性 とは？"
+    assert entry.sentence == ""  # 空欄にできなかった例文は裏面にも回さない
+    assert levels(loaded, "error") == []
+    assert "問答カードにしました" in levels(loaded, "warn")[0]
 
 
 def test_明示空欄の外に答えが残っていたら警告する():
