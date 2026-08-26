@@ -89,8 +89,20 @@ def _existing_by_uid(deck: Deck) -> dict[str, dict]:
     return existing
 
 
-def push_deck(deck: Deck, dry_run: bool = False, force: bool = False) -> DeckReport:
-    cards, errors = deck.load_cards()
+def push_deck(
+    deck: Deck,
+    dry_run: bool = False,
+    force: bool = False,
+    cards: list[Card] | None = None,
+) -> DeckReport:
+    """デッキを Anki へ送る。
+
+    `cards` を渡すと**その枚数だけ**送る（デッキの他のカードには触らない）。
+    `ankikit word` が使う。ブランチに何が置いてあっても、今書いた分しか Anki に入らない。
+    """
+    errors: list[ParseError] = []
+    if cards is None:
+        cards, errors = deck.load_cards()
     report = DeckReport(deck=deck, errors=errors, dry_run=dry_run)
     if errors and not force:
         return report

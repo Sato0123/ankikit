@@ -132,7 +132,7 @@ uv run ankikit status <slug> --write  # README の <!-- ankikit:status --> を�
 
 **答えが決まっているものは対話を通さない。** 用語・単語に「今日どこで詰まった？」と聞いても
 新しいものは出てこないので、JSON を書いて流す。`ankikit word` が **decks/ への追記・コミット・push まで
-まとめてやる**（`/anki-grill` の 1.5 節がこれを呼ぶ）。
+まとめてやる**（`/anki-grill` の 1.5 節がこれを呼ぶ）。**止める判定は無い。叩けばそのまま入る。**
 
 ```
 uv run ankikit word terms.json --deck sre   # 検証 → 重複除外 → 追記 → コミット → Anki
@@ -155,10 +155,11 @@ uv run ankikit eng words.json               # 別名。既定デッキが englis
 - **できなければ `## <用語> とは？` の問答カード**（`meaning` が裏面になる）。`sentence` を書いていない
   ときだけでなく、**書いた例文に語が見つからなかったとき**もこちらに降りる（その旨を警告に出す）
 - どちらにもできない（空欄にできず `meaning` も無い）行だけがエラーになる
-- デッキは `--deck` → JSON の `"deck"` → `anki.toml` の `[word] deck` の順に決まる
+- デッキは `--deck` → JSON の `"deck"` → `anki.toml` の `[word] deck` の順に決まる。
+  **その slug のデッキが無ければ雛形ごと作る**ので、`ankikit new` を先に叩かなくてよい
 
-承認の原則は形を変えて残っている。`word` は **main 上でしか push しない**ので、
-「Anki にあるもの = main にあるもの」は崩れない（`--no-push` なら他のブランチでも書ける）。
+承認の原則は形を変えて残っている。`word` が Anki へ送るのは**デッキ全体ではなく、今書いた枚数だけ**。
+だからどのブランチで叩いても、承認前のカードが Anki に流れることはない（書くだけなら `--no-push`）。
 **掘って初めて出てくる実践判断のほう**は、これまでどおり面談 → `staging/<slug>` → 承認の道を通す。
 
 重複判定はここだけ**単語**で行い、カードに `word::<単語>` タグが付く。
@@ -192,7 +193,7 @@ uv run ankikit push --deck <slug>  # ここで初めて Anki に入る
 | `uv run ankikit approve <slug>` | staging を main にマージ（＝承認） |
 | `uv run ankikit push --dry-run` | 何が追加・更新されるか確認 |
 | `uv run ankikit push --deck <slug>` | 反映（main の内容のみ） |
-| `uv run ankikit word <file.json>` | 用語・単語 JSON をカードにして Anki まで反映（承認なし・main 上のみ） |
+| `uv run ankikit word <file.json>` | 用語・単語 JSON をカードにして Anki まで反映（承認なし・デッキが無ければ作る） |
 | `uv run ankikit eng <file.json>` | `word` の別名（既定デッキ english-vocab） |
 | `uv run ankikit new <slug>` | デッキの雛形作成 |
 | `uv run ankikit doctor` | Anki 接続とノートタイプ名の確認 |

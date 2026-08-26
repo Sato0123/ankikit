@@ -193,3 +193,12 @@ def test_間隔設定に失敗してもカード自体は成功扱い(deck_dir, 
     report = sync.push_deck(make_deck(deck_dir, "## front\nA: back\nknown: 1\n"))
     assert report.count("added") == 1 and report.count("failed") == 0
     assert "既習の初期間隔" in report.results[0].detail
+
+
+def test_cardsを渡すとその分だけ送る(deck_dir, fake):
+    """`ankikit word` 用。デッキに他のカードが置いてあっても、渡した分しか Anki に入らない。"""
+    deck = make_deck(deck_dir, "## 古い表面\nA: back\n\n## 新しい表面\nA: back\n")
+    cards = deck.load_cards()[0]
+    report = sync.push_deck(deck, cards=[c for c in cards if c.front == "新しい表面"])
+    assert report.total == 1
+    assert [n["fields"]["表面"] for n in fake.added] == ["新しい表面"]

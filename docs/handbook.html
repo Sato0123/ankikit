@@ -412,7 +412,7 @@ uv add "ankikit @ git+https://github.com/Sato0123/ankikit"</div>
           <p class="band-label">branch <span>— 承認なしで進んでよい。Anki には 1 枚も入らない</span></p>
           <ol class="track">
             <li><span class="n">1</span><div><b>デッキを決める</b><p>今日はどのデッキの話か。ここが決まらないと「入れる基準」が決まらず、質問が散る。該当が無ければ <code>/anki-initialize</code> へ。</p></div></li>
-            <li><span class="n">1.5</span><div><b>今日の用語を貼る</b><p>出てきた用語・単語を一覧で貼るだけ。<b>この分だけは掘られず、承認も通らずに main へ直行する</b>（<a href="#word"><code>ankikit word</code></a>）。無ければ飛ばす。</p></div></li>
+            <li><span class="n">1.5</span><div><b>今日の用語を貼る</b><p>出てきた用語・単語を一覧で貼るだけ。<b>この分だけは掘られず、承認も通らずに Anki へ直行する</b>（<a href="#word"><code>ankikit word</code></a>）。無ければ飛ばす。</p></div></li>
             <li><span class="n">2</span><div><b>振り返る</b><p>そのデッキの方針に沿って、一度に一問ずつ問われる。掘られるのは<b>実践判断</b>だけ。5〜15 往復。</p></div></li>
             <li><span class="n">3</span><div><b>カード候補を見る</b><p>5〜10 枚が提示される。要らないものはここで落とす。</p></div></li>
             <li><span class="n">4</span><div><b>ブランチに書いてコミット</b><p><code>stage</code> → <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> → <code>lint</code> → コミット。</p></div></li>
@@ -448,7 +448,7 @@ uv add "ankikit @ git+https://github.com/Sato0123/ankikit"</div>
       </div>
 
       <p class="note note--warn" style="margin-top:20px">手で書きたいときは <code>decks/&lt;slug&gt;/cards/YYYY-MM-DD.md</code> に直接足して、同じくマージしてから <code>uv run ankikit push</code>。<b>経路が違っても承認ラインは同じ。</b></p>
-      <p class="note" style="margin-top:12px"><b>1.5 だけがこの帯の外を走る。</b> 用語には決まった答えがあるので、問い詰めても新しいものは出てこない。だから面談も承認も通さず、<code>ankikit word</code> が main の上で追記 → コミット → push まで一気にやる。承認の原則は「<b>main 上でしか push しない</b>」という形で残っている（<a href="#word">詳細</a>）。</p>
+      <p class="note" style="margin-top:12px"><b>1.5 だけがこの帯の外を走る。</b> 用語には決まった答えがあるので、問い詰めても新しいものは出てこない。だから面談も承認も通さず、<code>ankikit word</code> が追記 → コミット → push まで一気にやる。<b>止める判定は無く、どのブランチで叩いてもそのまま入る。</b>承認の原則は「<b>送るのは今書いた枚数だけ</b>」という形で残っている（<a href="#word">詳細</a>）。</p>
     </section>
 
     <!-- ══ スキル ══ -->
@@ -653,14 +653,14 @@ tags: [english]           <span class="c"># このデッキの全カードに付
     <!-- ══ 用語・単語 ══ -->
     <section id="word" data-title="用語・単語（一括登録）">
       <h2>用語・単語 — JSON から一気に流し込む</h2>
-      <p class="prose"><b>答えが決まっているものは対話も承認面談も通さない。</b>「TIME_WAIT とは？」「anyway の意味は？」に「今日どこで詰まった？」と聞く意味は無いので、<b>一覧を JSON にして <code>ankikit word</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。<code>/anki-grill</code> の 1.5 節はこれを呼んでいるだけなので、<b>手で叩いても同じ</b>。</p>
+      <p class="prose"><b>答えが決まっているものは対話も承認面談も通さない。</b>「TIME_WAIT とは？」「anyway の意味は？」に「今日どこで詰まった？」と聞く意味は無いので、<b>一覧を JSON にして <code>ankikit word</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。<b>デッキがまだ無ければ雛形ごと作る</b>ので、<code>ankikit new</code> を先に叩く必要も無い。<code>/anki-grill</code> の 1.5 節はこれを呼んでいるだけなので、<b>手で叩いても同じ</b>。</p>
 
       <div class="cmd">uv run ankikit word terms.json --deck sre  <span class="c"># 検証 → 重複除外 → 追記 → コミット → Anki</span>
 uv run ankikit word terms.json --dry-run   <span class="c"># 何が登録され何が弾かれるかだけ見る</span>
 uv run ankikit word terms.json --tag duo3  <span class="c"># 全カードに出典タグを付ける</span>
 uv run ankikit eng words.json              <span class="c"># 別名。既定デッキが english-vocab になるだけ</span></div>
 
-      <p class="note note--warn">承認の原則は形を変えて残っている。<code>word</code> は <b>main 上でしか push しない</b>ので、「Anki にあるもの ＝ main にあるもの」は崩れない。他のブランチで書くだけなら <code>--no-push</code>。<b>掘って初めて出てくる実践判断のほう</b>は、これまでどおり面談 → <code>staging/&lt;slug&gt;</code> → 承認を通す。</p>
+      <p class="note note--warn">承認の原則は形を変えて残っている。<code>word</code> が Anki へ送るのは<b>デッキ全体ではなく、今書いた枚数だけ</b>。だからどのブランチで叩いても、承認前のカードが Anki に流れ込むことはない。書くだけにしたいときは <code>--no-push</code>。<b>掘って初めて出てくる実践判断のほう</b>は、これまでどおり面談 → <code>staging/&lt;slug&gt;</code> → 承認を通す。</p>
 
       <h3>入力 JSON</h3>
       <p class="prose">手で打ち込む / 会話から書き起こす前提の形式。<b>配列だけでも、設定つきのオブジェクトでも受ける。</b></p>
@@ -674,7 +674,7 @@ uv run ankikit eng words.json              <span class="c"># 別名。既定デ�
     {"word": "wake", "sentence": "I ____ up early.", "meaning": "目を覚ます"}
   ]
 }</div>
-      <p class="note">入れ先は <code>--deck</code> → JSON の <code>"deck"</code> → <code>anki.toml</code> の <code>[word] deck</code> の順に決まる。どれも無ければ、どこに入れるか決まらないので止まる。</p>
+      <p class="note">入れ先は <code>--deck</code> → JSON の <code>"deck"</code> → <code>anki.toml</code> の <code>[word] deck</code> の順に決まる。<b>その slug のデッキがまだ無ければ、その場で作ってそこに入れる。</b>どれも無ければ、どこに入れるか決まらないので止まる。</p>
 
       <div class="tw" style="margin-top:16px"><table>
         <thead><tr><th>キー</th><th>意味</th></tr></thead>
@@ -773,7 +773,7 @@ uv run ankikit status &lt;slug&gt; --write <span class="c"># README の学習状
           <tr><td class="k"><code>pending</code></td><td>書いたが main にまだ無い（＝未承認で Anki に入らない）カードを一覧する</td><td><code>--deck &lt;slug&gt;</code></td></tr>
           <tr><td class="k"><code>approve [slug]</code></td><td>staging を main に <code>--no-ff</code> マージする。<b>これが承認そのもの</b></td><td><code>--branch &lt;name&gt;</code></td></tr>
           <tr><td class="k"><code>push</code></td><td>main にあるカードを Anki へ入れる。<b>Anki が起動している必要がある</b></td><td><code>--deck</code> <code>--dry-run</code> <code>--force</code> <code>-v</code> <code>--worktree</code></td></tr>
-          <tr><td class="k"><code>word &lt;file.json&gt;</code></td><td>用語・単語 JSON を検証 → カード化 → コミット → Anki まで一気に。承認なし・main 上のみ（<a href="#word">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
+          <tr><td class="k"><code>word &lt;file.json&gt;</code></td><td>用語・単語 JSON を検証 → カード化 → コミット → Anki まで一気に。承認なし・デッキが無ければ作る（<a href="#word">詳細</a>）</td><td><code>--deck</code> <code>--tag</code> <code>--date</code> <code>--dry-run</code> <code>--strict</code> <code>--no-commit</code> <code>--no-push</code> <code>-v</code></td></tr>
           <tr><td class="k"><code>eng &lt;file.json&gt;</code></td><td><code>word</code> の別名。既定デッキが <code>english-vocab</code> になるだけ</td><td>同上</td></tr>
         </tbody>
       </table></div>

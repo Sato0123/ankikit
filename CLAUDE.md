@@ -48,7 +48,7 @@ uv run ankikit pending            # main に未マージのカード
 uv run ankikit approve <slug>     # main へマージ（＝承認）
 uv run ankikit push --dry-run     # 差分だけ確認
 uv run ankikit push --deck <slug> # 反映（main の内容のみ・Anki 起動が必要）
-uv run ankikit word <file.json>   # 用語・単語 JSON → カード → コミット → Anki（承認なし・main 上のみ）
+uv run ankikit word <file.json>   # 用語・単語 JSON → カード → コミット → Anki（承認なし・デッキが無ければ作る）
 uv run ankikit eng <file.json>    # word の別名（既定デッキ english-vocab）
 uv run ankikit new <slug>         # デッキの雛形作成
 uv run ankikit install            # スキルをこのリポジトリに配置（カード側で叩く）
@@ -76,6 +76,7 @@ uv run pytest                     # テスト
 
 **答えが決まっているものは対話も承認面談も通さない。** JSON を `ankikit word` に食わせると、
 検証 → 重複除外 → `decks/<slug>/cards/YYYY-MM-DD.md` に追記 → コミット → push まで一気に走る。
+**止める判定を持たない**（ブランチも作業ツリーの汚れも見ない）ので、叩けばそのまま Anki に入る。
 `/anki-grill` の 1.5 節（デッキ特定の直後）がこれを呼ぶ。面談で掘るのは実践判断だけ。
 
 - 入れ先は `--deck` → JSON の `"deck"` → **別名 `eng` の既定（english-vocab）** → `anki.toml` の
@@ -91,8 +92,11 @@ uv run pytest                     # テスト
 - 例文の語形変化（`circle` → `circled`）を追うのは **ASCII の語だけ**。他言語は書かれた形しか探さない
 - 1 件の不備で全体を止めない。壊れた行と重複だけ落として残りは登録し、終了コードは 1 になる
   （`--strict` で全止め）。致命的（ファイル / JSON 自体が壊れている）だけ 2
-- push するのは **main 上のときだけ**。他のブランチでは `--no-push` を要求して、
-  「Anki にあるもの = main にあるもの」を保つ。**だから grill は stage する前に word を済ませる**
+- **`--deck` の slug が無ければその場で作る**（`new.create()` を呼ぶ。README も一緒にコミットする）。
+  単語を入れたいだけなのに `ankikit new` を挟ませない
+- **push するのはデッキ全体ではなく、今書いた枚数だけ**（`sync.push_deck(deck, cards=...)`）。
+  だからどのブランチで叩いても、承認前のカードが Anki に流れることはない。ブランチ判定を持たないのは
+  この形にしたから。**この 1 対 1 の関係を崩さないこと**（デッキ全体を送るように戻すと承認が壊れる）
 
 ## 道具自身の入れ替え（`update` / `change-version`）
 
