@@ -50,7 +50,7 @@ uv run ankikit push --dry-run     # 差分だけ確認
 uv run ankikit push --deck <slug> # 反映（main の内容のみ・Anki 起動が必要）
 uv run ankikit word <file.json>   # 用語・単語 JSON → カード → コミット → Anki（承認なし・デッキが無ければ作る）
 uv run ankikit eng <file.json>    # word の別名（既定デッキ english-vocab）
-uv run ankikit new <slug>         # デッキの雛形作成
+uv run ankikit new <slug>         # デッキの雛形作成（slug の . がサブデッキ: sre.network → sre::network）
 uv run ankikit install            # スキルをこのリポジトリに配置（カード側で叩く）
 uv run ankikit update             # ankikit 自身を最新にする（カード側で叩く）
 uv run ankikit change-version v0.2.0  # バージョンを固定する（latest で固定を外す）
@@ -94,6 +94,9 @@ uv run pytest                     # テスト
   （`--strict` で全止め）。致命的（ファイル / JSON 自体が壊れている）だけ 2
 - **`--deck` の slug が無ければその場で作る**（`new.create()` を呼ぶ。README も一緒にコミットする）。
   単語を入れたいだけなのに `ankikit new` を挟ませない
+- **サブデッキは slug の `.`**。`--deck english.duo` → `decks/english.duo/` ＋ Anki 側 `english::duo`
+  （`new.anki_deck_name()`）。`decks/` は 1 階層しか読まないので、入れ子はディレクトリではなく名前で持つ。
+  `english::duo` と書かれても `.` に寄せてから探す（`normalize_slug`）ので、既存デッキが 2 つに割れない
 - **push するのはデッキ全体ではなく、今書いた枚数だけ**（`sync.push_deck(deck, cards=...)`）。
   だからどのブランチで叩いても、承認前のカードが Anki に流れることはない。ブランチ判定を持たないのは
   この形にしたから。**この 1 対 1 の関係を崩さないこと**（デッキ全体を送るように戻すと承認が壊れる）

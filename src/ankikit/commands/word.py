@@ -36,7 +36,7 @@ WORD_TAG_PREFIX = "word::"
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("file", help="用語 JSON のパス")
-    parser.add_argument("--deck", help="対象デッキの slug（無ければ作る。省略時は JSON の \"deck\" → anki.toml の [word] deck）")
+    parser.add_argument("--deck", help="対象デッキの slug（無ければ作る。`.` 区切りでサブデッキ。省略時は JSON の \"deck\" → anki.toml の [word] deck）")
     parser.add_argument("--tag", action="append", default=[], help="全カードに付けるタグ（複数可）")
     parser.add_argument("--date", help="書き込み先のカードファイル名（既定は今日 YYYY-MM-DD）")
     parser.add_argument("--dry-run", action="store_true", help="検証だけして何も書かない")
@@ -121,7 +121,8 @@ def _resolve_deck(args: argparse.Namespace, loaded: vocab.Loaded) -> tuple[Deck,
     はっきりしているから。汎用の `[word] deck` にそれを横取りさせない。
 
     **決まった slug のデッキが無ければその場で作る。** 単語を入れたいだけなのに
-    `ankikit new` を挟ませる理由が無い。戻り値の 2 つ目が「今作った」かどうか
+    `ankikit new` を挟ませる理由が無い。`english.duo` のように `.` で区切れば
+    Anki 側は `english::duo` のサブデッキになる。戻り値の 2 つ目が「今作った」かどうか
     （作ったなら README も一緒にコミットする）。
     """
     slug = args.deck or loaded.deck or getattr(args, "fallback_deck", None) or config.word_default_deck()
@@ -134,12 +135,27 @@ def _resolve_deck(args: argparse.Namespace, loaded: vocab.Loaded) -> tuple[Deck,
     if deck is not None:
         return deck, False
 
+    # ここから先は「無いので作る」。`english::duo` と書かれてもディレクトリ名は `.` に寄せる。
+    normalized = new.normalize_slug(slug)
+    if normalized != slug:
+        deck = find_deck(normalized)
+        if deck is not None:
+            return deck, False
+        slug = normalized
+
+    problem = new.slug_problem(slug)
+    if problem:
+        common.error(problem)
+        return None
+
+    anki_deck = new.anki_deck_name(slug)
     if args.dry_run:
-        print(f"[dry-run] デッキ '{slug}' はまだ無いので作ります")
-        return Deck(slug=slug, path=config.DECKS_DIR / slug, anki_deck=slug), True
+        print(f"[dry-run] デッキ '{slug}' はまだ無いので作ります（Anki 上: {anki_deck}）")
+        return Deck(slug=slug, path=config.DECKS_DIR / slug, anki_deck=anki_deck), True
 
     new.create(slug)
-    print(f"デッキ '{slug}' が無かったので作りました: {config.DECKS_DIR / slug}/README.md")
+    print(f"デッキ '{slug}' が無かったので作りました: {config.DECKS_DIR / slug}/README.md"
+          f"（Anki 上のデッキ名: {anki_deck}）")
     created = find_deck(slug)
     if created is None:  # 作った直後に見つからないのは異常。黙って別の場所へ入れない。
         common.error(f"デッキ '{slug}' を作りましたが読み込めません")

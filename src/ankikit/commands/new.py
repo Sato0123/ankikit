@@ -1,4 +1,9 @@
-"""`ankikit new` — デッキの雛形（README.md + cards/）を作る。"""
+"""`ankikit new` — デッキの雛形（README.md + cards/）を作る。
+
+**サブデッキは slug の `.` で表す。** `english.duo` と書けば `decks/english.duo/` が
+できて、Anki 側は `english::duo` になる。`decks/` は 1 階層しか読まないので、
+入れ子はディレクトリではなく名前で持つ。
+"""
 
 from __future__ import annotations
 
@@ -52,8 +57,33 @@ tags: [{slug}]
 """
 
 
+# slug の中でサブデッキを区切る文字。Anki 側の `::` に対応する。
+SUBDECK_SEPARATOR = "."
+
+
+def anki_deck_name(slug: str) -> str:
+    """`english.duo` → `english::duo`。Anki のサブデッキ記法に直す。"""
+    return "::".join(slug.split(SUBDECK_SEPARATOR))
+
+
+def normalize_slug(name: str) -> str:
+    """`english::duo` と書かれてもディレクトリ名は `.` 区切りに寄せる。"""
+    return name.replace("::", SUBDECK_SEPARATOR)
+
+
+def slug_problem(slug: str) -> str | None:
+    """ディレクトリ名にできない slug なら理由を返す。作る前に呼ぶ。"""
+    if "/" in slug or "\\" in slug:
+        return f"'{slug}': デッキ名にパス区切りは使えません（サブデッキは '.' で区切ります）"
+    if any(not part for part in slug.split(SUBDECK_SEPARATOR)):
+        return f"'{slug}': '.' の前後が空です（例: english.duo）"
+    if slug.startswith(".") or slug in ("", "."):
+        return f"'{slug}': デッキ名として使えません"
+    return None
+
+
 def add_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("slug", help="ディレクトリ名（例: english-vocab）")
+    parser.add_argument("slug", help="ディレクトリ名（例: english-vocab / english.duo でサブデッキ）")
     parser.add_argument("--anki-deck", help="Anki 上のデッキ名（例: '英語::語彙'）")
     parser.add_argument("--note-type", default="basic", choices=["basic", "cloze"])
 
@@ -62,6 +92,7 @@ def create(slug: str, anki_deck: str | None = None, note_type: str = "basic") ->
     """デッキのディレクトリを作って README を置く。**既にある場合は呼ばないこと。**
 
     `ankikit word` も入れ先が無いときにここを呼ぶので、雛形はこの 1 か所だけにする。
+    `anki_deck` を渡さなければ slug の `.` を `::` に直したものになる（＝サブデッキ）。
     """
     path = config.DECKS_DIR / slug
     (path / "cards").mkdir(parents=True)
@@ -70,7 +101,7 @@ def create(slug: str, anki_deck: str | None = None, note_type: str = "basic") ->
     (path / "README.md").write_text(
         README_TEMPLATE.format(
             slug=slug,
-            anki_deck=anki_deck or slug,
+            anki_deck=anki_deck or anki_deck_name(slug),
             note_type=note_type,
         ),
         encoding="utf-8",
@@ -79,12 +110,18 @@ def create(slug: str, anki_deck: str | None = None, note_type: str = "basic") ->
 
 
 def run(args: argparse.Namespace) -> int:
-    path = config.DECKS_DIR / args.slug
+    slug = normalize_slug(args.slug)
+    problem = slug_problem(slug)
+    if problem:
+        common.error(problem)
+        return 1
+
+    path = config.DECKS_DIR / slug
     if path.exists():
         common.error(f"{path} は既に存在します")
         return 1
 
-    create(args.slug, args.anki_deck, args.note_type)
-    print(f"作成しました: {path}/README.md")
+    deck = create(slug, args.anki_deck, args.note_type)
+    print(f"作成しました: {deck}/README.md（Anki 上のデッキ名: {args.anki_deck or anki_deck_name(slug)}）")
     print("README.md の方針を埋めてコミットし、main にマージすると push 対象になります。")
     return 0

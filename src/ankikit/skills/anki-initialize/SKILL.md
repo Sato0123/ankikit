@@ -54,7 +54,7 @@ description: 新しい Anki デッキを立ち上げるときに、方針（目�
 決まったら slug（kebab-case）と Anki 上のデッキ名（`親::子`）を提案し、確認を取ってから作る。
 
 ```
-uv run ankikit new <slug> --anki-deck "親::子"
+uv run ankikit new <slug> --anki-deck "親::子"   # slug 自体を 親.子 と書いても同じ
 ```
 
 **`new` を先に実行すること。** `ankikit stage` は `decks/<slug>/` が存在しないと失敗する。
