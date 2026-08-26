@@ -27,6 +27,7 @@ from . import (
     stage,
     status,
     update,
+    word,
 )
 
 # --help に出る順番でもある。
@@ -38,6 +39,7 @@ ALL = [
     stage,
     approve,
     push,
+    word,
     eng,
     new,
     install,
