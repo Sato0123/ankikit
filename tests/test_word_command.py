@@ -10,6 +10,7 @@ import pytest
 
 from ankikit import config
 from ankikit.cli import build_parser
+from ankikit.deck import find_deck
 from ankikit.sync import DeckReport
 from ankikit.commands import eng, new, word
 
@@ -100,3 +101,38 @@ def test_pushするのは今書いた分だけ(repo, monkeypatch):
     monkeypatch.setattr(word.sync, "push_deck", fake_push)
     word.run(parse(["word", terms(repo, "冪等性"), "--deck", "sre"]))
     assert [c.front for c in sent[0]] == ["冪等性 とは？"]
+
+
+# --------------------------------------------------------------------- サブデッキ
+
+
+def test_slugの区切りがAnkiのサブデッキになる():
+    assert new.anki_deck_name("english.duo") == "english::duo"
+    assert new.anki_deck_name("english") == "english"
+    assert new.normalize_slug("english::duo") == "english.duo"
+
+
+@pytest.mark.parametrize("slug", ["english.", ".english", "a..b", "a/b"])
+def test_ディレクトリ名にできないslugは断る(slug):
+    assert new.slug_problem(slug)
+
+
+def test_ドット区切りで指定するとサブデッキとして作られる(repo, capsys):
+    assert word.run(parse(["word", terms(repo, "anyway"), "--deck", "english.duo", "--no-push"])) == 0
+    deck = find_deck("english.duo")
+    assert deck.path == repo / "decks" / "english.duo"
+    assert deck.anki_deck == "english::duo"
+    assert "english::duo" in capsys.readouterr().out
+
+
+def test_コロンで書いても同じデッキを指す(repo):
+    """`english::duo` は Anki 側の書き方。同じデッキとして扱い、2 つ目を作らない。"""
+    word.run(parse(["word", terms(repo, "anyway"), "--deck", "english.duo", "--no-push"]))
+    word.run(parse(["word", terms(repo, "circle back"), "--deck", "english::duo", "--no-push"]))
+    assert [p.name for p in (repo / "decks").iterdir()] == ["english.duo"]
+
+
+def test_作れないslugなら何も書かずに止まる(repo, capsys):
+    assert word.run(parse(["word", terms(repo, "anyway"), "--deck", "english.", "--no-push"])) == 2
+    assert not (repo / "decks").exists()
+    assert "'.' の前後が空です" in capsys.readouterr().err

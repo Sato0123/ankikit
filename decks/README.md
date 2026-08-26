@@ -24,7 +24,7 @@ decks/
 
 ```markdown
 ---
-anki_deck: "英語::語彙"   # Anki 上の実デッキ名。`::` で階層。省略時はディレクトリ名
+anki_deck: "英語::語彙"   # Anki 上の実デッキ名。`::` で階層。省略時はディレクトリ名の `.` を `::` にしたもの
 note_type: basic          # basic | cloze（カード側に {{c1::}} があれば自動で cloze）
 tags: [english]           # このデッキの全カードに付くタグ
 ---
@@ -152,11 +152,14 @@ uv run ankikit eng words.json               # 別名。既定デッキが englis
 ```
 
 - **例文の該当語を空欄にできれば穴埋め**（`____` を自分で書いてもよい）
-- **できなければ `## <用語> とは？` の問答カード**（`meaning` が裏面になる）。`sentence` を書いていない
-  ときだけでなく、**書いた例文に語が見つからなかったとき**もこちらに降りる（その旨を警告に出す）
-- どちらにもできない（空欄にできず `meaning` も無い）行だけがエラーになる
+- **できなければ `## <用語> とは？` の問答カード**。裏面は `meaning`、無ければ**例文をそのまま**回す
+  （`{"word": "alias", "sentence": "a shell builtin"}` → `## alias とは？` / `A: a shell builtin`）
+- **`word` 以外は自由記述。空欄にできなかったことでは落とさない。** 落ちるのは裏面になるものが
+  何も無い行（`word` しか書いていない）だけ
 - デッキは `--deck` → JSON の `"deck"` → `anki.toml` の `[word] deck` の順に決まる。
   **その slug のデッキが無ければ雛形ごと作る**ので、`ankikit new` を先に叩かなくてよい
+- **`--deck english.duo` のように `.` で区切るとサブデッキ**（`decks/english.duo/` ＋ Anki 側
+  `english::duo`）。`--deck "english::duo"` と Anki の書き方をしても同じデッキを指す
 
 承認の原則は形を変えて残っている。`word` が Anki へ送るのは**デッキ全体ではなく、今書いた枚数だけ**。
 だからどのブランチで叩いても、承認前のカードが Anki に流れることはない（書くだけなら `--no-push`）。
@@ -195,7 +198,7 @@ uv run ankikit push --deck <slug>  # ここで初めて Anki に入る
 | `uv run ankikit push --deck <slug>` | 反映（main の内容のみ） |
 | `uv run ankikit word <file.json>` | 用語・単語 JSON をカードにして Anki まで反映（承認なし・デッキが無ければ作る） |
 | `uv run ankikit eng <file.json>` | `word` の別名（既定デッキ english-vocab） |
-| `uv run ankikit new <slug>` | デッキの雛形作成 |
+| `uv run ankikit new <slug>` | デッキの雛形作成（slug の `.` がサブデッキ: `sre.network` → `sre::network`） |
 | `uv run ankikit doctor` | Anki 接続とノートタイプ名の確認 |
 
 `--ref <branch>` で承認済みとみなすブランチを変えられる。`push --worktree` は承認を無視して作業ツリーを送る非常口。

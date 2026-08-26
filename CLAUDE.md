@@ -50,7 +50,7 @@ uv run ankikit push --dry-run     # 差分だけ確認
 uv run ankikit push --deck <slug> # 反映（main の内容のみ・Anki 起動が必要）
 uv run ankikit word <file.json>   # 用語・単語 JSON → カード → コミット → Anki（承認なし・デッキが無ければ作る）
 uv run ankikit eng <file.json>    # word の別名（既定デッキ english-vocab）
-uv run ankikit new <slug>         # デッキの雛形作成
+uv run ankikit new <slug>         # デッキの雛形作成（slug の . がサブデッキ: sre.network → sre::network）
 uv run ankikit install            # スキルをこのリポジトリに配置（カード側で叩く）
 uv run ankikit update             # ankikit 自身を最新にする（カード側で叩く）
 uv run ankikit change-version v0.2.0  # バージョンを固定する（latest で固定を外す）
@@ -82,9 +82,13 @@ uv run pytest                     # テスト
 - 入れ先は `--deck` → JSON の `"deck"` → **別名 `eng` の既定（english-vocab）** → `anki.toml` の
   `[word] deck` の順。`eng` の既定を汎用設定より先に見るのは、`eng` と打った時点で意図が明らかだから
 - **カードの形は空欄にできたかで決まる。** 例文の該当語を空欄にできれば穴埋め、できなければ
-  `## <用語> とは？` の問答（`meaning` が裏面）。**例文はあるが語が文中に見つからない場合も
-  `meaning` があれば問答に降りる**（警告付き）。日本語は活用を当てないので「用語 + 言い換えの一文」だと
-  普通に外す。どちらにもできない（空欄化できず `meaning` も無い）ときだけエラー
+  `## <用語> とは？` の問答。日本語は活用を当てないので「用語 + 言い換えの一文」だと普通に外す
+- **`word` 以外は自由記述。「空欄にできなかった」でエラーにはしない。** 裏面は `meaning`、無ければ
+  例文をそのまま回す（`{"word": "alias", "sentence": "a shell builtin"}` → `## alias とは？` /
+  `A: a shell builtin`）。語が文中に無いことは確認済みなので答えは漏れない。
+  **落とすのは裏面になるものが何も無い行だけ**（`word` しか無い）
+- 問答に降りたことは警告に出すが、**同じ code の警告はまとめて 1 行**にする（`ISSUE_SUMMARIES`）。
+  自由記述の欄で普通に起きることを行数分並べると、本当のエラーが流れる
 - **重複判定は表面ハッシュではなく単語**。カードに付く `word::<単語>` タグがキー。**消すと二重に入る**
 - `word_key()` は**ラテン文字だけの語の結果を変えてはいけない**（既存カードのタグとずれて重複が流れ込む）。
   ASCII に収まらない語だけ、以前のハッシュ（`x-3f2a1b9c`）をやめて文字をそのまま残す（`word::冪等性`）。
@@ -94,6 +98,9 @@ uv run pytest                     # テスト
   （`--strict` で全止め）。致命的（ファイル / JSON 自体が壊れている）だけ 2
 - **`--deck` の slug が無ければその場で作る**（`new.create()` を呼ぶ。README も一緒にコミットする）。
   単語を入れたいだけなのに `ankikit new` を挟ませない
+- **サブデッキは slug の `.`**。`--deck english.duo` → `decks/english.duo/` ＋ Anki 側 `english::duo`
+  （`new.anki_deck_name()`）。`decks/` は 1 階層しか読まないので、入れ子はディレクトリではなく名前で持つ。
+  `english::duo` と書かれても `.` に寄せてから探す（`normalize_slug`）ので、既存デッキが 2 つに割れない
 - **push するのはデッキ全体ではなく、今書いた枚数だけ**（`sync.push_deck(deck, cards=...)`）。
   だからどのブランチで叩いても、承認前のカードが Anki に流れることはない。ブランチ判定を持たないのは
   この形にしたから。**この 1 対 1 の関係を崩さないこと**（デッキ全体を送るように戻すと承認が壊れる）

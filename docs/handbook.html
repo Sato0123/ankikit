@@ -620,7 +620,7 @@ uv run ankikit status &lt;slug&gt; --write  <span class="c"># README の学習�
       <h3>デッキ <code>README.md</code></h3>
       <p class="prose">フロントマターが設定、本文が方針。本文は <code>/anki-grill</code> が読んで「何をカードにするか」を判断する材料になるので、<b>入れる基準と入れない基準は具体例で</b>書く。</p>
       <div class="cmd">---
-anki_deck: "英語::語彙"   <span class="c"># Anki 上の実デッキ名。:: で階層。省略時はディレクトリ名</span>
+anki_deck: "英語::語彙"   <span class="c"># Anki 上の実デッキ名。:: で階層。省略時はディレクトリ名の . を :: にしたもの</span>
 note_type: basic          <span class="c"># basic | cloze（カードに {{c1::}} があれば自動で cloze）</span>
 tags: [english]           <span class="c"># このデッキの全カードに付くタグ</span>
 ---
@@ -653,7 +653,7 @@ tags: [english]           <span class="c"># このデッキの全カードに付
     <!-- ══ 用語・単語 ══ -->
     <section id="word" data-title="用語・単語（一括登録）">
       <h2>用語・単語 — JSON から一気に流し込む</h2>
-      <p class="prose"><b>答えが決まっているものは対話も承認面談も通さない。</b>「TIME_WAIT とは？」「anyway の意味は？」に「今日どこで詰まった？」と聞く意味は無いので、<b>一覧を JSON にして <code>ankikit word</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。<b>デッキがまだ無ければ雛形ごと作る</b>ので、<code>ankikit new</code> を先に叩く必要も無い。<code>/anki-grill</code> の 1.5 節はこれを呼んでいるだけなので、<b>手で叩いても同じ</b>。</p>
+      <p class="prose"><b>答えが決まっているものは対話も承認面談も通さない。</b>「TIME_WAIT とは？」「anyway の意味は？」に「今日どこで詰まった？」と聞く意味は無いので、<b>一覧を JSON にして <code>ankikit word</code> に食わせる</b>。検証・重複除外・<code>decks/</code> への追記・コミット・Anki への反映まで 1 コマンドで走る。<b>デッキがまだ無ければ雛形ごと作る</b>ので、<code>ankikit new</code> を先に叩く必要も無い（<code>--deck english.duo</code> のように <code>.</code> で区切れば <code>english::duo</code> のサブデッキになる）。<code>/anki-grill</code> の 1.5 節はこれを呼んでいるだけなので、<b>手で叩いても同じ</b>。</p>
 
       <div class="cmd">uv run ankikit word terms.json --deck sre  <span class="c"># 検証 → 重複除外 → 追記 → コミット → Anki</span>
 uv run ankikit word terms.json --dry-run   <span class="c"># 何が登録され何が弾かれるかだけ見る</span>
@@ -674,7 +674,7 @@ uv run ankikit eng words.json              <span class="c"># 別名。既定デ�
     {"word": "wake", "sentence": "I ____ up early.", "meaning": "目を覚ます"}
   ]
 }</div>
-      <p class="note">入れ先は <code>--deck</code> → JSON の <code>"deck"</code> → <code>anki.toml</code> の <code>[word] deck</code> の順に決まる。<b>その slug のデッキがまだ無ければ、その場で作ってそこに入れる。</b>どれも無ければ、どこに入れるか決まらないので止まる。</p>
+      <p class="note">入れ先は <code>--deck</code> → JSON の <code>"deck"</code> → <code>anki.toml</code> の <code>[word] deck</code> の順に決まる。<b>その slug のデッキがまだ無ければ、その場で作ってそこに入れる。</b><b>サブデッキは slug の <code>.</code></b>（<code>english.duo</code> → <code>decks/english.duo/</code> ＋ Anki 側 <code>english::duo</code>。Anki の書き方で <code>english::duo</code> と渡しても同じデッキを指す）。どれも無ければ、どこに入れるか決まらないので止まる。</p>
 
       <div class="tw" style="margin-top:16px"><table>
         <thead><tr><th>キー</th><th>意味</th></tr></thead>
@@ -697,7 +697,7 @@ tags: word::anyway         <span class="c"># ← 重複判定のキー。消す�
 ## 冪等性 とは？           <span class="c"># 空欄にできず → 問答。表面 = 用語</span>
 A: 同じ操作を何度実行しても結果が変わらない性質   <span class="c"># 裏面 = 意味 / メモ</span>
 tags: word::冪等性</div>
-      <p class="note">英単語で目標なのは「anyway ＝ とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから例文があるほうを既定にしている。一方、概念や日本語の用語は例文に埋めても想起のきっかけにならないので、素の問答でよい。<b>例文を書いても語が文中に見つからなければ、<code>meaning</code> がある限り問答に降りる</b>（「冪等性」に「この API は何度呼んでも同じ結果になる」と添えた場合など）。落ちるのは空欄にできず <code>meaning</code> も無い行だけ。</p>
+      <p class="note">英単語で目標なのは「anyway ＝ とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから例文があるほうを既定にしている。一方、概念や日本語の用語は例文に埋めても想起のきっかけにならないので、素の問答でよい。<b>例文を書いても語が文中に見つからなければ問答に降りる</b>（「冪等性」に「この API は何度呼んでも同じ結果になる」と添えた場合など）。裏面は <code>meaning</code>、それも無ければ<b>例文をそのまま</b>裏面にする（<code>{"word": "alias", "sentence": "a shell builtin"}</code> → <code>## alias とは？</code> / <code>A: a shell builtin</code>）。<b><code>word</code> 以外は自由記述なので、空欄にできなかったことでは落とさない。</b>落ちるのは裏面になるものが何も無い行（<code>word</code> しか書いていない）だけ。</p>
 
       <h3>空欄化のルール</h3>
       <div class="tw"><table>
@@ -767,7 +767,7 @@ uv run ankikit status &lt;slug&gt; --write <span class="c"># README の学習状
         <tbody>
           <tr><td class="k"><code>decks</code></td><td>デッキを一覧する。枚数・未承認の枚数・Anki 側にそのデッキがあるか</td><td>—</td></tr>
           <tr><td class="k"><code>status [slug]</code></td><td>学習状況を出す。ファイル側の枚数と Anki 側の新規／復習の内訳</td><td><code>--write</code>（README の status ブロックに書き戻す）</td></tr>
-          <tr><td class="k"><code>new &lt;slug&gt;</code></td><td>デッキの雛形（<code>decks/&lt;slug&gt;/</code> と README）を作る</td><td><code>--anki-deck "親::子"</code> <code>--note-type basic|cloze</code></td></tr>
+          <tr><td class="k"><code>new &lt;slug&gt;</code></td><td>デッキの雛形（<code>decks/&lt;slug&gt;/</code> と README）を作る。slug の <code>.</code> がサブデッキ（<code>sre.network</code> → <code>sre::network</code>）</td><td><code>--anki-deck "親::子"</code> <code>--note-type basic|cloze</code></td></tr>
           <tr><td class="k"><code>stage &lt;slug&gt;</code></td><td><code>staging/&lt;slug&gt;</code> に切り替える（無ければ main から作る）。<b>カードを書く前に叩く</b></td><td>—</td></tr>
           <tr><td class="k"><code>lint</code></td><td>作業ツリーのカードファイルの書式を検査する。<b>コミット前に 0 件を確認する</b></td><td><code>--deck &lt;slug&gt;</code></td></tr>
           <tr><td class="k"><code>pending</code></td><td>書いたが main にまだ無い（＝未承認で Anki に入らない）カードを一覧する</td><td><code>--deck &lt;slug&gt;</code></td></tr>
