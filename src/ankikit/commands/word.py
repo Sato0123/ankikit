@@ -6,13 +6,13 @@
 
     1. JSON を検証して例文を空欄化   （壊れた行だけ落として理由を出す。例文が無ければ問答カード）
     2. 単語をキーに重複を除外         （デッキに既にある語 / ファイル内の重複）
-    3. decks/<slug>/cards/YYYY-MM-DD.md に追記してコミット
-    4. Anki へ push
+    3. decks/<slug>/cards/YYYY-MM-DD.md に追記してコミット（**デッキが無ければ作る**）
+    4. **今書いた分だけ** Anki へ push
 
 **用語には決まった答えがあるので、面談で問い詰める意味が無い。** だから承認（ブランチ →
-main のマージ）は飛ばす。代わりに **main 上でしか push しない**ようにして
-「Anki に入っているもの = main にあるもの」を保つ。掘って初めて出てくる実践判断のほうは
-`/anki-grill` が承認つきで作る。
+main のマージ）は飛ばす。ブランチも作業ツリーの汚れも見ないので、叩けばそのまま入る。
+それでも「承認していないカードが混ざる」ことが起きないのは、**push するのがデッキ全体ではなく
+今書いた枚数だけ**だから。掘って初めて出てくる実践判断のほうは `/anki-grill` が承認つきで作る。
 
 `ankikit eng` はこのコマンドの別名（既定デッキが `english-vocab`）。
 """
@@ -26,7 +26,7 @@ from pathlib import Path
 from .. import approval, config, connect, sync, vocab
 from ..deck import Deck, find_deck, load_decks
 from ..parser import Card, parse_text
-from . import common
+from . import common, new
 
 NAME = "word"
 HELP = "用語・単語の JSON をカードにして Anki まで反映"
@@ -36,7 +36,7 @@ WORD_TAG_PREFIX = "word::"
 
 def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("file", help="用語 JSON のパス")
-    parser.add_argument("--deck", help="対象デッキの slug（省略時は JSON の \"deck\" → anki.toml の [word] deck）")
+    parser.add_argument("--deck", help="対象デッキの slug（無ければ作る。省略時は JSON の \"deck\" → anki.toml の [word] deck）")
     parser.add_argument("--tag", action="append", default=[], help="全カードに付けるタグ（複数可）")
     parser.add_argument("--date", help="書き込み先のカードファイル名（既定は今日 YYYY-MM-DD）")
     parser.add_argument("--dry-run", action="store_true", help="検証だけして何も書かない")
@@ -55,9 +55,10 @@ def run(args: argparse.Namespace) -> int:
         common.error(str(exc))
         return 2
 
-    deck = _resolve_deck(args, loaded)
-    if deck is None:
+    resolved = _resolve_deck(args, loaded)
+    if resolved is None:
         return 2
+    deck, created = resolved
 
     cards, read_errors = deck.load_cards()
     for err in read_errors:
@@ -87,7 +88,8 @@ def run(args: argparse.Namespace) -> int:
             print(f"  + {entry.front[:60]}  → {entry.word}")
 
     target = _card_file(deck, args.date)
-    text = _compose(target, entries, loaded.tags + args.tag, Path(args.file).name)
+    block = vocab.render(entries, loaded.tags + args.tag, Path(args.file).name)
+    text = _compose(target, block)
     if not _verify(text, target, cards, len(entries)):
         return 2
 
@@ -95,30 +97,32 @@ def run(args: argparse.Namespace) -> int:
         print(f"[dry-run] {target} に {len(entries)} 枚追記して Anki へ反映します")
         return exit_code
 
-    if not args.no_push and not _ready_to_push(deck, target, args):
-        return 2
-
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(text, encoding="utf-8")
     print(f"{target} に {len(entries)} 枚追記しました")
 
-    if not args.no_commit and not _commit(target, deck, len(entries)):
+    written = [target, *([deck.readme] if created else [])]
+    if not args.no_commit and not _commit(written, deck, len(entries)):
         return 1
     if args.no_push:
         print("--no-push 指定のため Anki には反映していません（`uv run ankikit push --deck "
               f"{deck.slug}` で反映できます）")
         return exit_code
-    return _push(deck, args) or exit_code
+    return _push(deck, _added_cards(deck, block, target)) or exit_code
 
 
 # --------------------------------------------------------------------------- 準備
 
 
-def _resolve_deck(args: argparse.Namespace, loaded: vocab.Loaded) -> Deck | None:
+def _resolve_deck(args: argparse.Namespace, loaded: vocab.Loaded) -> tuple[Deck, bool] | None:
     """--deck → JSON の "deck" → 別名コマンドの既定 → anki.toml の [word] deck、の順に決める。
 
     別名（`ankikit eng`）の既定を先に見るのは、`eng` と打った時点で english-vocab の意図が
     はっきりしているから。汎用の `[word] deck` にそれを横取りさせない。
+
+    **決まった slug のデッキが無ければその場で作る。** 単語を入れたいだけなのに
+    `ankikit new` を挟ませる理由が無い。戻り値の 2 つ目が「今作った」かどうか
+    （作ったなら README も一緒にコミットする）。
     """
     slug = args.deck or loaded.deck or getattr(args, "fallback_deck", None) or config.word_default_deck()
     if not slug:
@@ -128,10 +132,19 @@ def _resolve_deck(args: argparse.Namespace, loaded: vocab.Loaded) -> Deck | None
 
     deck = find_deck(slug)
     if deck is not None:
-        return deck
-    common.error(f"デッキ '{slug}' が見つかりません。利用可能: {_available()}")
-    common.error(f"（作るなら `uv run ankikit new {slug}`）")
-    return None
+        return deck, False
+
+    if args.dry_run:
+        print(f"[dry-run] デッキ '{slug}' はまだ無いので作ります")
+        return Deck(slug=slug, path=config.DECKS_DIR / slug, anki_deck=slug), True
+
+    new.create(slug)
+    print(f"デッキ '{slug}' が無かったので作りました: {config.DECKS_DIR / slug}/README.md")
+    created = find_deck(slug)
+    if created is None:  # 作った直後に見つからないのは異常。黙って別の場所へ入れない。
+        common.error(f"デッキ '{slug}' を作りましたが読み込めません")
+        return None
+    return created, True
 
 
 def _available() -> str:
@@ -155,40 +168,6 @@ def _card_file(deck: Deck, date: str | None) -> Path:
     return deck.cards_dir / f"{dt.date.today().isoformat()}.md"
 
 
-def _ready_to_push(deck: Deck, target: Path, args: argparse.Namespace) -> bool:
-    """「Anki にあるもの = ref（既定 main）にあるもの」を守れる状態か。
-
-    push は作業ツリーのデッキをまるごと送るので、**このデッキに未コミットの変更が残っていると
-    それも一緒に Anki へ入る**。書き込む前にここで止める。自分がこれから書く target と
-    --no-commit で置いていく分は対象外（それは承知の上の操作なので警告にとどめる）。
-    """
-    if not approval.is_repo():
-        common.warn("git リポジトリではないので、そのまま書き込みます")
-        return True
-
-    branch = approval.current_branch()
-    if branch != args.ref:
-        common.error(
-            f"今は '{branch}' にいます。Anki に入るのは '{args.ref}' の内容だけなので、"
-            f"`git switch {args.ref}` してから実行するか、--no-push を付けてください"
-        )
-        return False
-
-    if args.no_commit:
-        common.warn("--no-commit なので、コミットしていないカードが Anki に入ります")
-        return True
-
-    others = [p for p in approval.dirty_paths(f"decks/{deck.slug}") if Path(p).name != target.name]
-    if others:
-        common.error(
-            f"{deck.slug} に未コミットの変更があります: {', '.join(others)}"
-            f"\n  push はデッキ全体を送るので、これも Anki に入ってしまいます。"
-            f"先にコミットするか、--no-push を付けてください"
-        )
-        return False
-    return True
-
-
 # --------------------------------------------------------------------------- 書き込み
 
 
@@ -202,9 +181,8 @@ def _report_issues(issues: list[vocab.Issue]) -> None:
             common.warn(str(issue))
 
 
-def _compose(target: Path, entries: list[vocab.Entry], tags: list[str], source: str) -> str:
+def _compose(target: Path, block: str) -> str:
     """既存ファイルに追記した後の中身を組み立てる。まだ書かない。"""
-    block = vocab.render(entries, tags, source)
     if not target.exists():
         return block
     current = target.read_text(encoding="utf-8").rstrip("\n")
@@ -236,27 +214,40 @@ def _verify(text: str, target: Path, existing: list[Card], expected: int) -> boo
     return True
 
 
-def _commit(target: Path, deck: Deck, count: int) -> bool:
+def _added_cards(deck: Deck, block: str, target: Path) -> list[Card]:
+    """今書いた分のカードだけを、デッキのタグまで乗った状態で取り出す。
+
+    **push に渡すのはこれだけ。** デッキ全体を送らないので、承認前のカードが
+    同じブランチに置いてあっても Anki には流れない。
+    """
+    fresh = {card.uid for card in parse_text(block, target).cards}
+    cards, _ = deck.load_cards()
+    return [card for card in cards if card.uid in fresh]
+
+
+def _commit(paths: list[Path], deck: Deck, count: int) -> bool:
     if not approval.is_repo():
         return True
+    relative = []
+    for path in paths:
+        try:
+            relative.append(path.relative_to(config.REPO_ROOT).as_posix())
+        except ValueError:
+            relative.append(str(path))
     try:
-        relative = target.relative_to(config.REPO_ROOT).as_posix()
-    except ValueError:
-        relative = str(target)
-    try:
-        approval.git("add", "--", relative)
-        approval.git("commit", "-m", f"cards({deck.slug}): {count}枚 (ankikit word)", "--", relative)
+        approval.git("add", "--", *relative)
+        approval.git("commit", "-m", f"cards({deck.slug}): {count}枚 (ankikit word)", "--", *relative)
     except approval.GitError as exc:
         common.error(f"コミットに失敗しました: {exc}")
-        common.error(f"（カードは {target} に書けています。手でコミットしてください）")
+        common.error(f"（カードは {paths[0]} に書けています。手でコミットしてください）")
         return False
-    print(f"コミットしました: {relative}")
+    print(f"コミットしました: {', '.join(relative)}")
     return True
 
 
-def _push(deck: Deck, args: argparse.Namespace) -> int:
+def _push(deck: Deck, cards: list[Card]) -> int:
     try:
-        report = sync.push_deck(deck)
+        report = sync.push_deck(deck, cards=cards)
     except connect.AnkiUnavailable as exc:
         common.error(str(exc))
         common.error(f"（カードは書けています。Anki を起動して `uv run ankikit push --deck {deck.slug}`）")

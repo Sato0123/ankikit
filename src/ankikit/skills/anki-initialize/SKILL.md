@@ -142,7 +142,8 @@ uv run ankikit new <slug> --anki-deck "親::子"
 uv run ankikit word /tmp/terms-<slug>-<YYYY-MM-DD>.json --deck <slug>
 ```
 
-- **stage する前（6 節より前）に済ませる。** `word` は main 以外では push を拒む
+- **stage する前（6 節より前）に済ませる。** `word` はブランチの上でも黙って Anki に入れるので、
+  後で叩くと、そのブランチを捨てたときカードが Anki にだけ残る
 - JSON はリポジトリの外に置く（入力の使い捨て。正はカードファイル）
 - 書式と流し方は `/anki-grill` の 1.5 節と同じ
 - ここに回すのは用語だけ。「この状況でどう動くか」は面談で作るカードのまま

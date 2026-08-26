@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from pathlib import Path
 
 from .. import config
 from . import common
@@ -57,23 +58,33 @@ def add_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--note-type", default="basic", choices=["basic", "cloze"])
 
 
+def create(slug: str, anki_deck: str | None = None, note_type: str = "basic") -> Path:
+    """デッキのディレクトリを作って README を置く。**既にある場合は呼ばないこと。**
+
+    `ankikit word` も入れ先が無いときにここを呼ぶので、雛形はこの 1 か所だけにする。
+    """
+    path = config.DECKS_DIR / slug
+    (path / "cards").mkdir(parents=True)
+    # 散文の学びメモ。カードではないので push も lint も読まない。
+    (path / "notes").mkdir()
+    (path / "README.md").write_text(
+        README_TEMPLATE.format(
+            slug=slug,
+            anki_deck=anki_deck or slug,
+            note_type=note_type,
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
 def run(args: argparse.Namespace) -> int:
     path = config.DECKS_DIR / args.slug
     if path.exists():
         common.error(f"{path} は既に存在します")
         return 1
 
-    (path / "cards").mkdir(parents=True)
-    # 散文の学びメモ。カードではないので push も lint も読まない。
-    (path / "notes").mkdir()
-    (path / "README.md").write_text(
-        README_TEMPLATE.format(
-            slug=args.slug,
-            anki_deck=args.anki_deck or args.slug,
-            note_type=args.note_type,
-        ),
-        encoding="utf-8",
-    )
+    create(args.slug, args.anki_deck, args.note_type)
     print(f"作成しました: {path}/README.md")
     print("README.md の方針を埋めてコミットし、main にマージすると push 対象になります。")
     return 0
