@@ -92,18 +92,18 @@ def test_複数回出てくる語は全部空欄にする():
     assert "anyway" not in front.lower()
 
 
-def test_見つからない語は意味が無ければエラーになって他は通る():
-    loaded = load_text(
-        '[{"word": "woke", "sentence": "I get up early."},'
-        ' {"word": "anyway", "sentence": "Let\'s try anyway."}]'
-    )
-    assert [e.word for e in loaded.entries] == ["anyway"]
-    assert "空欄にできません" in levels(loaded, "error")[0]
+def test_見つからない語は意味が無くても落とさず例文を裏面に回す():
+    """`word` 以外は自由記述。`{"word": "alias", "sentence": "a shell builtin"}` を弾かない。"""
+    loaded = load_text('[{"word": "alias", "sentence": "a shell builtin"}]')
+    entry = loaded.entries[0]
+    assert (entry.kind, entry.front) == ("qa", "alias とは？")
+    assert to_markdown(entry).splitlines()[:2] == ["## alias とは？", "A: a shell builtin"]
+    assert not levels(loaded, "error")
 
 
-def test_空欄にできないエラーは問答という逃げ道も案内する():
-    loaded = load_text('[{"word": "woke", "sentence": "I get up early."}]')
-    assert "meaning（意味）を足せば" in levels(loaded, "error")[0]
+def test_例文を裏面に回したことは警告で言う():
+    loaded = load_text('[{"word": "alias", "sentence": "a shell builtin"}]')
+    assert "例文をそのまま裏面にして" in levels(loaded, "warn")[0]
 
 
 def test_例文で空欄にできなくても意味があれば問答カードに落ちる():
@@ -157,10 +157,11 @@ def test_空の入力は落とす():
         load_text("[]")
 
 
-def test_例文も意味も無ければその行だけ落ちる():
+def test_裏面になるものが何も無ければその行だけ落ちる():
+    """落とすのはここだけ。`word` しか無いカードは裏面が空になる。"""
     loaded = load_text('[{"word": "anyway"}, {"word": "any", "sentence": "any way"}]')
     assert [e.word for e in loaded.entries] == ["any"]
-    assert "sentence（例文）か meaning（意味）" in levels(loaded, "error")[0]
+    assert "裏面になるものがありません" in levels(loaded, "error")[0]
 
 
 def test_単語が空なら落ちる():

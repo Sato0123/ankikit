@@ -27,8 +27,10 @@
   書かれた形の完全一致しか探さず、「用語 + 言い換えの一文」だと語が文中に出てこないことが普通にある。
   そこで行ごと落とすより、答えの決まっている問答として入れるほうがいい。
 
-どちらにもできない（例文で空欄にできず `meaning` も無い）ときだけエラー。答えが表面に出たカードは
-無価値なので、空欄化に失敗した例文をそのまま表面にすることはしない。
+**`word` 以外は自由記述。だから「空欄にできなかった」でエラーにはしない。** `meaning` が無ければ
+例文をそのまま裏面に回す（`{"word": "alias", "sentence": "a shell builtin"}` は
+`## alias とは？` / `A: a shell builtin` になる）。語が文中に無いことは確認済みなので、
+これで答えが表面に漏れることはない。**裏面になるものが何も無い**（`word` だけ）ときだけエラー。
 """
 
 from __future__ import annotations
@@ -68,12 +70,17 @@ class VocabError(RuntimeError):
 
 @dataclass
 class Issue:
-    """1 エントリ単位の不備。level が error/skip なら、そのエントリは採用されない。"""
+    """1 エントリ単位の不備。level が error/skip なら、そのエントリは採用されない。
+
+    `code` が付いた警告は**まとめて 1 行**にして出す（`ISSUE_SUMMARIES` の文言 + 語の一覧）。
+    自由記述の欄で普通に起きることを、行数分だけ並べても読まれない。
+    """
 
     level: str  # error（入力の不備）/ skip（重複）/ warn（採用はするが注意）
     message: str
     index: int | None = None
     word: str = ""
+    code: str = ""  # 同種としてまとめるための印
 
     def __str__(self) -> str:
         where = f"[{self.index}]" if self.index else "[-]"
@@ -87,7 +94,7 @@ class Entry:
 
     word: str
     front: str  # 空欄化した例文（Q/A なら「<用語> とは？」）
-    sentence: str  # 空欄を埋め戻した完全な例文（Q/A では空）
+    sentence: str  # 空欄を埋め戻した完全な例文（Q/A では空。meaning が無く例文を裏面に回したときだけ残る）
     meaning: str = ""
     note: str = ""
     index: int = 0
@@ -265,19 +272,17 @@ def _normalize_entry(raw: dict, index: int, issues: list[Issue]) -> dict[str, st
     return fields
 
 
-def _no_card_reason(word: str, sentence: str) -> str:
-    """1 枚も作れなかったときの理由。**逃げ道を必ず 1 つは書く。**"""
-    if not sentence:
-        return (
-            "sentence（例文）か meaning（意味）のどちらかは要ります。"
-            "例文があれば穴埋め、無ければ「<用語> とは？」の問答になります"
-        )
-    return (
-        f"例文に '{word}' が見つからないので空欄にできません。"
-        f"例文側に ____ を書くか、実際の語形を word に書いてください。"
-        f"meaning（意味）を足せば、例文を使わず「<用語> とは？」の問答カードにします"
-        f"（例文: {sentence[:40]}）"
-    )
+# まとめて出す警告の見出し。Issue.code と対応する。
+ISSUE_SUMMARIES = {
+    "qa-fallback": "例文に語が見つからないので「<用語> とは？」の問答カードにしました"
+                   "（穴埋めにしたいなら例文側に ____ を書いてください）",
+}
+
+# 裏面が空のカードは作れない。ここだけは word 以外にも何か要る。
+NO_BACK_REASON = (
+    "裏面になるものがありません。meaning（意味）か sentence（例文）のどちらかを書いてください"
+    "（例文が空欄にできれば穴埋め、できなければ「<用語> とは？」の問答になります）"
+)
 
 
 def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
@@ -299,23 +304,28 @@ def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
     # 空欄にできたなら穴埋め。できなければ（例文が無い / 語が文中に見つからない）問答へ降りる。
     blanked = blank_out(sentence, word) if sentence else None
     if blanked is None:
-        if not meaning:
-            issues.append(Issue("error", _no_card_reason(word, sentence), index, label))
+        # 裏面は meaning が第一。無ければ例文をそのまま裏面に回す（`word` 以外は自由記述なので、
+        # 「空欄にできなかった」は不備ではない）。語が文中に無いことは確認済みで、答えは漏れない。
+        if not meaning and not sentence:
+            issues.append(Issue("error", NO_BACK_REASON, index, label))
             return None
         if sentence:
             issues.append(
                 Issue(
                     "warn",
-                    f"例文に '{word}' が見つからないので、例文は使わず「<用語> とは？」の問答カードにしました"
-                    f"（穴埋めにしたいなら例文側に ____ を書いてください）",
+                    f"例文に '{word}' が無いので、"
+                    + ("例文は使わず" if meaning else "例文をそのまま裏面にして")
+                    + "「<用語> とは？」の問答カードにしました"
+                    "（穴埋めにしたいなら例文側に ____ を書いてください）",
                     index,
                     label,
+                    code="qa-fallback",
                 )
             )
         return Entry(
             word=word,
             front=QUESTION.format(word=word),
-            sentence="",
+            sentence="" if meaning else sentence,
             meaning=meaning,
             note=note,
             index=index,
@@ -428,7 +438,8 @@ def to_markdown(entry: Entry, extra_tags: list[str] | None = None) -> str:
         tags: word::anyway
     """
     if entry.kind == "qa":
-        back = [entry.meaning]
+        # meaning が無いときは、空欄にできなかった例文がそのまま裏面になっている。
+        back = [entry.meaning or entry.sentence]
     else:
         back = [entry.word]
         if entry.meaning:

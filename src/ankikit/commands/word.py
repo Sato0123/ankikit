@@ -188,13 +188,25 @@ def _card_file(deck: Deck, date: str | None) -> Path:
 
 
 def _report_issues(issues: list[vocab.Issue]) -> None:
+    """不備を出す。**同じ code の警告はまとめて 1 行**（語の一覧だけ添える）。
+
+    自由記述の欄で普通に起きることを行数分並べると、本当に見てほしいエラーが流れる。
+    """
+    grouped: dict[str, list[vocab.Issue]] = {}
     for issue in issues:
         if issue.level == "error":
             common.error(str(issue))
         elif issue.level == "skip":
             print(f"重複: {issue}")
+        elif issue.code:
+            grouped.setdefault(issue.code, []).append(issue)
         else:
             common.warn(str(issue))
+
+    for code, group in grouped.items():
+        words = [i.word for i in group if i.word]
+        shown = ", ".join(words[:8]) + (f" ほか {len(words) - 8} 件" if len(words) > 8 else "")
+        common.warn(f"{len(group)} 件: {vocab.ISSUE_SUMMARIES.get(code, code)}: {shown}")
 
 
 def _compose(target: Path, block: str) -> str:
