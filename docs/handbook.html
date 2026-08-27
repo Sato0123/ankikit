@@ -668,6 +668,7 @@ uv run ankikit eng words.json              <span class="c"># 別名。既定デ�
   "deck": "sre",                               <span class="c"># 入れ先（--deck でも指定できる）</span>
   "tags": ["duo3"],                            <span class="c"># 全カードに付くタグ（省略可）</span>
   "words": [
+    {"front": "awk", "back": "パターン走査と処理の言語"},   <span class="c"># 表裏をそのまま</span>
     {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"},
     {"word": "anyway", "sentence": "Let's try anyway.", "meaning": "とにかく"},
     {"word": "circle back", "sentence": "She circled back to me.", "note": "p.42"},
@@ -679,16 +680,22 @@ uv run ankikit eng words.json              <span class="c"># 別名。既定デ�
       <div class="tw" style="margin-top:16px"><table>
         <thead><tr><th>キー</th><th>意味</th></tr></thead>
         <tbody>
-          <tr><td class="k"><code>word</code> / <code>単語</code></td><td><b>必須。</b>覚えたい語。空欄の答えになる</td></tr>
-          <tr><td class="k"><code>sentence</code> / <code>例文</code></td><td>出会った文をそのまま。<code>____</code> を書けばそこが空欄、書かなければ <code>word</code> を文中から探す。<b>省略すると問答カードになる</b></td></tr>
-          <tr><td class="k"><code>meaning</code> / <code>意味</code></td><td>意味・定義。<b>例文を空欄にできないときは必須</b>（裏面になる）</td></tr>
+          <tr><td class="k"><code>front</code> / <code>表</code></td><td>表面を自分で書く。<b>書いたらそのまま</b>（<code>とは？</code> も付かず、空欄化もしない）</td></tr>
+          <tr><td class="k"><code>back</code> / <code>裏</code></td><td>裏面を自分で書く。<code>meaning</code> と同じ場所に入る</td></tr>
+          <tr><td class="k"><code>word</code> / <code>単語</code></td><td>覚えたい語。空欄の答えになり、重複判定のキーにもなる。<b><code>front</code> を書かないならこれが必須</b></td></tr>
+          <tr><td class="k"><code>sentence</code> / <code>例文</code></td><td><b>出会った文をそのまま。</b><code>____</code> を書けばそこが空欄、書かなければ <code>word</code> を文中から探す。<b>語の説明を置く場所ではない</b>（それは <code>back</code>）</td></tr>
+          <tr><td class="k"><code>meaning</code> / <code>意味</code></td><td>意味・定義。例文を空欄にできないときは<b>これが裏面になる</b></td></tr>
           <tr><td class="k"><code>note</code> / <code>メモ</code></td><td>出典ページや語法メモ。省略可</td></tr>
         </tbody>
       </table></div>
 
       <h3>できあがるカード</h3>
-      <p class="prose"><b>形は例文の該当語を空欄にできたかで決まる。</b></p>
-      <div class="cmd">## Let's try ____.          <span class="c"># 例文あり → 穴埋め。表面 = 該当語を空欄にした文</span>
+      <p class="prose"><b>形は、表裏を自分で書いたかどうかで決まる。</b></p>
+      <div class="cmd">## awk                     <span class="c"># front/back → 書いたそのまま。推測は一切しない</span>
+A: パターン走査と処理の言語
+tags: word::awk
+
+## Let's try ____.          <span class="c"># word + 例文 → 穴埋め。表面 = 該当語を空欄にした文</span>
 A: anyway                  <span class="c"># 裏面 = 単語 / 意味 / 完全な例文 / メモ</span>
 とにかく
 Let's try anyway.
@@ -697,6 +704,7 @@ tags: word::anyway         <span class="c"># ← 重複判定のキー。消す�
 ## 冪等性 とは？           <span class="c"># 空欄にできず → 問答。表面 = 用語</span>
 A: 同じ操作を何度実行しても結果が変わらない性質   <span class="c"># 裏面 = 意味 / メモ</span>
 tags: word::冪等性</div>
+      <p class="note note--warn"><b><code>sentence</code> に語の説明を入れない。</b>例文の該当語は空欄になるので、<code>awk</code> の例文に <code>/usr/bin/awk</code> と書くと表面は <code>## /usr/bin/____</code> になり、同じディレクトリのコマンドが全部その 1 枚に潰れる（答えの定まらない問いになるうえ、表面が重複してファイルごと書けなくなる）。<b>「語 → その説明・対訳・パス」の単語帳は <code>front</code> / <code>back</code> で渡す。</b></p>
       <p class="note">英単語で目標なのは「anyway ＝ とにかく」を思い出すことではなく、<b>文の中の穴を埋められる</b>ようになること。だから例文があるほうを既定にしている。一方、概念や日本語の用語は例文に埋めても想起のきっかけにならないので、素の問答でよい。<b>例文を書いても語が文中に見つからなければ問答に降りる</b>（「冪等性」に「この API は何度呼んでも同じ結果になる」と添えた場合など）。裏面は <code>meaning</code>、それも無ければ<b>例文をそのまま</b>裏面にする（<code>{"word": "alias", "sentence": "a shell builtin"}</code> → <code>## alias とは？</code> / <code>A: a shell builtin</code>）。<b><code>word</code> 以外は自由記述なので、空欄にできなかったことでは落とさない。</b>落ちるのは裏面になるものが何も無い行（<code>word</code> しか書いていない）だけ。</p>
 
       <h3>空欄化のルール</h3>
@@ -706,16 +714,18 @@ tags: word::冪等性</div>
           <tr><td class="k">例文に <code>____</code> がある</td><td>そこが空欄。不規則変化（<code>wake</code> → <code>woke</code>）はこれで書く</td></tr>
           <tr><td class="k">そのままの語がある</td><td>その語を空欄にする。大小は無視（<code>Anyway</code> も可）</td></tr>
           <tr><td class="k">素直な語形変化</td><td><code>circle</code> → <code>circled</code>、<code>stop</code> → <code>stopped</code> 程度までは追う</td></tr>
-          <tr><td class="k">見つからない</td><td><b>その 1 件だけエラー</b>。答えが表面に見えるカードは作らない</td></tr>
+          <tr><td class="k">見つからない</td><td><b>問答カードに降りる</b>（警告は出す）。答えが表面に見えるカードは作らない</td></tr>
+          <tr><td class="k">空欄化してほしくない</td><td><code>sentence</code> ではなく <code>front</code> / <code>back</code> で書く。<b>そこには一切手を入れない</b></td></tr>
         </tbody>
       </table></div>
 
       <h3>1 件の不備で全体は止まらない</h3>
       <p class="prose">重複判定はここだけ<b>単語</b>で行う（面談から作るカードは表面のハッシュ）。<code>Circle Back</code> と <code>circle-back</code> は同じ語。日本語の用語は<b>表記の揺れまでは吸収できない</b>ので <code>冪等性</code> と <code>べき等性</code> は別の語として 2 枚入る。<b>壊れた行と重複だけ落として、残りはそのまま登録する</b>ので、同じファイルに追記しながら何度流してもよく、直した行だけが後から入る。全部止めたいときは <code>--strict</code>。</p>
-      <div class="cmd"><span class="c">ERROR [5] woke: 例文に 'woke' が見つからないので空欄にできません。…</span>
-<span class="c">ERROR [6] defer: sentence（例文）か meaning（意味）のどちらかは要ります…</span>
+      <div class="cmd"><span class="c">WARN  2 件: 例文に語が見つからないので「&lt;用語&gt; とは？」の問答カードにしました…: alias, type</span>
+<span class="c">ERROR [6] defer: 裏面になるものがありません。back（裏）か sentence（例文）のどちらかを…</span>
 <span class="c">重複: [4] Anyway: ファイル内の [1] と同じ単語なので飛ばしました</span>
-english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 1 / 不備 2</div>
+<span class="c">重複: [5] sed: 表面が [3] awk と同じなので飛ばしました: /usr/bin/____</span>
+english-vocab → 英語::語彙: 入力 7 件 / 登録 4 / 重複 2 / 不備 1</div>
       <div class="tw" style="margin-top:16px"><table>
         <thead><tr><th>終了コード</th><th>意味</th></tr></thead>
         <tbody>

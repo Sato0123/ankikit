@@ -7,6 +7,7 @@
 入力（配列だけでも、設定つきのオブジェクトでも受ける）:
 
     [
+      {"front": "awk", "back": "パターン走査と処理の言語"},
       {"word": "anyway", "sentence": "Let's try anyway.", "meaning": "とにかく"},
       {"word": "circle back", "sentence": "She ____ back to me later.", "note": "p.42"},
       {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"}
@@ -18,19 +19,27 @@
       "words": [ ... ]
     }
 
-**カードの形は空欄にできたかで決まる。**
+**カードの形は、表裏を自分で書いたかどうかで決まる。**
 
-- 穴埋め: `sentence` に `____`（アンダースコア 3 つ以上）があればそこが空欄。無ければ `word` を
-  文中から探して空欄にする（`circle` → `circled` のような素直な語形変化までは追う）。
-- Q/A: `## <用語> とは？` / `A: <meaning>` の素の問答。例文が無いときはもちろん、
+- 単語帳（`front` / `back`）: 表裏をそのまま受け取る。**ankikit は一切足さず、一切推測しない**
+  （`とは？` も付けないし、空欄化もしない）。表と裏が既に決まっているものはこれで入れる。
+  `{"front": "awk", "back": "/usr/bin/awk"}` は `## awk` / `A: /usr/bin/awk` になる。
+- 穴埋め（`word` + `sentence`）: 例文に `____`（アンダースコア 3 つ以上）があればそこが空欄。
+  無ければ `word` を文中から探して空欄にする（`circle` → `circled` のような素直な語形変化までは追う）。
+- Q/A（`word` + `meaning`）: `## <用語> とは？` / `A: <meaning>` の素の問答。例文が無いときはもちろん、
   **例文はあるが空欄にできなかったとき**もここに降りる（警告は出す）。日本語の語は活用を当てないので
   書かれた形の完全一致しか探さず、「用語 + 言い換えの一文」だと語が文中に出てこないことが普通にある。
   そこで行ごと落とすより、答えの決まっている問答として入れるほうがいい。
 
+**`sentence` は「その語に出会った文」であって、語の説明を置く場所ではない。** 説明を `sentence` に
+入れると、その中の語が空欄になって表面が潰れる（`awk` + `/usr/bin/awk` → `## /usr/bin/____`。
+同じディレクトリのコマンドが全部同じ表面になる）。**説明・対訳・パスのような「裏面そのもの」は
+`back`**（または `meaning`）に書く。`front` を書けば表面も推測されない。
+
 **`word` 以外は自由記述。だから「空欄にできなかった」でエラーにはしない。** `meaning` が無ければ
 例文をそのまま裏面に回す（`{"word": "alias", "sentence": "a shell builtin"}` は
 `## alias とは？` / `A: a shell builtin` になる）。語が文中に無いことは確認済みなので、
-これで答えが表面に漏れることはない。**裏面になるものが何も無い**（`word` だけ）ときだけエラー。
+これで答えが表面に漏れることはない。**裏面になるものが何も無い**（表面だけ）ときだけエラー。
 """
 
 from __future__ import annotations
@@ -49,13 +58,19 @@ BOUNDARY_L = r"(?<![A-Za-z0-9])"
 BOUNDARY_R = r"(?![A-Za-z0-9])"
 
 # 手打ちの揺れを吸収する。左が正、右が受け付ける別名。
+#
+# `front` / `back` は**表裏そのもの**（書いたら推測しない）。`word` / `sentence` / `meaning` は
+# **材料**（そこから表裏を組み立てる）。同じ「裏面」でも `back` と `meaning` を分けないのは、
+# 裏になるという意味では同じものだから。表面の作り方が変わるのは `front` の有無だけ。
 ALIASES: dict[str, str] = {
+    "front": "front", "表": "front", "表面": "front", "おもて": "front",
+    "back": "meaning", "裏": "meaning", "裏面": "meaning", "うら": "meaning",
     "word": "word", "単語": "word", "語": "word",
     "sentence": "sentence", "例文": "sentence", "example": "sentence", "文": "sentence",
     "meaning": "meaning", "意味": "meaning", "訳": "meaning", "translation": "meaning",
     "note": "note", "メモ": "note", "備考": "note", "出典": "note",
 }
-ENTRY_KEYS = ("word", "sentence", "meaning", "note")
+ENTRY_KEYS = ("front", "back", "word", "sentence", "meaning", "note")
 # 例文が無いときの表面。用語カードは「その語が何を指すか」だけを聞く。
 QUESTION = "{word} とは？"
 LIST_KEYS = ("words", "entries", "cards", "単語", "リスト")
@@ -92,13 +107,13 @@ class Issue:
 class Entry:
     """カード 1 枚分。front/back は組み立て済みで、あとは Markdown にするだけ。"""
 
-    word: str
-    front: str  # 空欄化した例文（Q/A なら「<用語> とは？」）
+    word: str  # 重複判定に使う語（`pair` では front を書いた本人が別に word を書かない限り front）
+    front: str  # 空欄化した例文（Q/A なら「<用語> とは？」、pair なら書かれた表面そのまま）
     sentence: str  # 空欄を埋め戻した完全な例文（Q/A では空。meaning が無く例文を裏面に回したときだけ残る）
     meaning: str = ""
     note: str = ""
     index: int = 0
-    kind: str = "blank"  # blank（例文の穴埋め）/ qa（用語 → 意味）
+    kind: str = "blank"  # blank（例文の穴埋め）/ qa（用語 → 意味）/ pair（書かれた表裏そのまま）
 
     @property
     def key(self) -> str:
@@ -275,14 +290,16 @@ def _normalize_entry(raw: dict, index: int, issues: list[Issue]) -> dict[str, st
 # まとめて出す警告の見出し。Issue.code と対応する。
 ISSUE_SUMMARIES = {
     "qa-fallback": "例文に語が見つからないので「<用語> とは？」の問答カードにしました"
-                   "（穴埋めにしたいなら例文側に ____ を書いてください）",
+                   "（穴埋めにしたいなら例文側に ____、語の説明を裏面に置きたいだけなら "
+                   "sentence ではなく back に書いてください）",
 }
 
-# 裏面が空のカードは作れない。ここだけは word 以外にも何か要る。
+# 裏面が空のカードは作れない。ここだけは表面以外にも何か要る。
 NO_BACK_REASON = (
-    "裏面になるものがありません。meaning（意味）か sentence（例文）のどちらかを書いてください"
+    "裏面になるものがありません。back（裏）か sentence（例文）のどちらかを書いてください"
     "（例文が空欄にできれば穴埋め、できなければ「<用語> とは？」の問答になります）"
 )
+PAIR_NO_BACK_REASON = "front（表）はありますが裏面がありません。back（裏）を書いてください"
 
 
 def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
@@ -292,14 +309,32 @@ def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
 
     fields = _normalize_entry(raw, index, issues)
     word = fields.get("word", "")
+    front = fields.get("front", "")
     sentence = fields.get("sentence", "")
     meaning = fields.get("meaning", "")
     note = fields.get("note", "")
-    label = word or sentence[:20]
+    label = word or front or sentence[:20]
 
-    if not word:
-        issues.append(Issue("error", "word が空です", index, label))
+    if not word and not front:
+        issues.append(Issue("error", "表面がありません。word（語）か front（表）を書いてください", index, label))
         return None
+
+    if front:
+        # 表裏を自分で書いた＝単語帳。**ここでは何も推測しない。** 表面は書かれたまま、裏面は back。
+        # 空欄化を試みないので、`awk` の裏に `/usr/bin/awk` を置いても表面が `/usr/bin/____` に
+        # 潰れることはない。重複判定のキーは word を別に書いていればそれ、無ければ表面の語。
+        if not meaning and not sentence:
+            issues.append(Issue("error", PAIR_NO_BACK_REASON, index, label))
+            return None
+        return Entry(
+            word=word or front,
+            front=front,
+            sentence=sentence,
+            meaning=meaning,
+            note=note,
+            index=index,
+            kind="pair",
+        )
 
     # 空欄にできたなら穴埋め。できなければ（例文が無い / 語が文中に見つからない）問答へ降りる。
     blanked = blank_out(sentence, word) if sentence else None
@@ -316,7 +351,8 @@ def _build(raw: object, index: int, issues: list[Issue]) -> Entry | None:
                     f"例文に '{word}' が無いので、"
                     + ("例文は使わず" if meaning else "例文をそのまま裏面にして")
                     + "「<用語> とは？」の問答カードにしました"
-                    "（穴埋めにしたいなら例文側に ____ を書いてください）",
+                    "（穴埋めにしたいなら例文側に ____、語の説明を裏面に置きたいだけなら "
+                    "sentence ではなく back に書いてください）",
                     index,
                     label,
                     code="qa-fallback",
@@ -425,19 +461,52 @@ def dedupe(entries: list[Entry], known: set[str]) -> tuple[list[Entry], list[Iss
     return kept, issues
 
 
+def drop_front_clashes(entries: list[Entry], taken: dict[str, str]) -> tuple[list[Entry], list[Issue]]:
+    """**表面**がぶつかるカードを落とす。落ちるのはぶつかった分だけで、残りはそのまま通す。
+
+    重複の本体は単語で見る（`dedupe`）が、表面は別に一意でないといけない。カードの同一性は
+    表面のハッシュで決まるので、同じ表面が 2 枚あると parser が「同一ファイル内に同じ表面が重複」で
+    落ち、**ファイルごと書き込めなくなる**。
+
+    実際に踏むのは、例文のつもりで語の説明を入れて空欄化が効きすぎたとき。`awk` の例文に
+    `/usr/bin/awk` と書くと表面は `## /usr/bin/____` になり、同じディレクトリのコマンドが
+    全部その 1 枚に潰れる。**そこで 100 件を道連れにせず、ぶつかった分だけ落として理由を言う**
+    （`ankikit word` は 1 件の不備で全体を止めない、が原則）。
+
+    taken は既にある表面 → その在り処。ここで採った表面も足しながら見る。
+    """
+    issues: list[Issue] = []
+    kept: list[Entry] = []
+    seen = dict(taken)
+    for entry in entries:
+        front = entry.front.strip()
+        where = seen.get(front)
+        if where is not None:
+            issues.append(Issue("skip", f"表面が {where} と同じなので飛ばしました: {front[:40]}", entry.index, entry.word))
+            continue
+        seen[front] = f"[{entry.index}] {entry.word}"
+        kept.append(entry)
+    return kept, issues
+
+
 # --------------------------------------------------------------------------- Markdown 出力
 
 
 def to_markdown(entry: Entry, extra_tags: list[str] | None = None) -> str:
     """decks/<slug>/cards/*.md の記法に落とす（parser がそのまま読める形）。
 
-        ## Let's try ____ anyway.        ## 冪等性 とは？
-        A: anyway                        A: 同じ操作を何度実行しても結果が変わらない性質
-        とにかく、いずれにせよ            <出典メモ>
+        ## Let's try ____ anyway.        ## 冪等性 とは？          ## awk
+        A: anyway                        A: 同じ操作を…             A: パターン走査と処理の言語
+        とにかく、いずれにせよ            <出典メモ>                 tags: word::awk
         Let's try anyway.                tags: word::冪等性
         tags: word::anyway
     """
-    if entry.kind == "qa":
+    if entry.kind == "pair":
+        # 書かれた裏面がそのまま裏面。例文も書いてあれば下に添える（表面には触らない）。
+        back = [entry.meaning or entry.sentence]
+        if entry.meaning and entry.sentence:
+            back.append(entry.sentence)
+    elif entry.kind == "qa":
         # meaning が無いときは、空欄にできなかった例文がそのまま裏面になっている。
         back = [entry.meaning or entry.sentence]
     else:

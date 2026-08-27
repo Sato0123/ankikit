@@ -39,13 +39,16 @@ uv run ankikit eng words.json               ← 別名。既定デッキが engl
 
 ```json
 [
+  {"front": "awk", "back": "パターン走査と処理の言語"},
   {"word": "anyway", "sentence": "Let's try anyway.", "meaning": "とにかく"},
   {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"}
 ]
 ```
 
-- `sentence` があれば例文の該当語が自動で `____` になる（表面 `Let's try ____.` / 裏面 `anyway`）
-- 無ければ `## 冪等性 とは？` の問答カードになる
+- **表裏が決まっているものは `front` / `back` にそのまま書く**（表面 `awk` / 裏面 `パターン走査と処理の言語`）。
+  ankikit は何も足さず、空欄化もしない
+- `word` + `sentence` なら例文の該当語が自動で `____` になる（表面 `Let's try ____.` / 裏面 `anyway`）
+- 例文が無ければ `## 冪等性 とは？` の問答カードになる
 - 重複は**単語**で判定して、ぶつかった語だけ飛ばす。書式は [`decks/README.md`](decks/README.md)
 
 デッキは `--deck` → JSON の `"deck"` → `anki.toml` の `[word] deck` の順に決まる。

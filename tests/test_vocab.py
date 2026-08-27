@@ -17,6 +17,7 @@ from ankikit.vocab import (
     VocabError,
     blank_out,
     dedupe,
+    drop_front_clashes,
     load_file,
     load_text,
     render,
@@ -126,6 +127,48 @@ def test_明示空欄の外に答えが残っていたら警告する():
     assert "答えが見えます" in levels(loaded, "warn")[0]
 
 
+# --------------------------------------------------------------------------- 表裏をそのまま受ける
+
+
+def test_表裏を書けばそのままカードになる():
+    """`front`/`back` は推測を全部止める。**裏面に表の語が入っていても空欄にしない。**
+
+    これが無かったころ `awk` + 例文 `/usr/bin/awk` は `## /usr/bin/____` に潰れていた。
+    """
+    loaded = load_text('[{"front": "awk", "back": "/usr/bin/awk"}]')
+    entry = loaded.entries[0]
+    assert (entry.kind, entry.front) == ("pair", "awk")
+    assert to_markdown(entry) == "## awk\nA: /usr/bin/awk\ntags: word::awk"
+    assert loaded.issues == []
+
+
+def test_表裏は日本語のキーでも書ける():
+    entry = load_text('[{"表": "sed", "裏": "ストリームエディタ"}]').entries[0]
+    assert (entry.front, entry.meaning) == ("sed", "ストリームエディタ")
+
+
+def test_表裏に例文を添えると裏面の下に付く():
+    entry = load_text('[{"front": "sed", "back": "ストリームエディタ", "例文": "sed -n 1p"}]').entries[0]
+    assert to_markdown(entry).splitlines()[:3] == ["## sed", "A: ストリームエディタ", "sed -n 1p"]
+
+
+def test_裏面が無ければ表だけの行は落ちる():
+    loaded = load_text('[{"front": "awk"}]')
+    assert not loaded.entries
+    assert "back（裏）" in levels(loaded, "error")[0]
+
+
+def test_表面の語が重複判定のキーになる():
+    entry = load_text('[{"front": "awk", "back": "/usr/bin/awk"}]').entries[0]
+    assert entry.tag == "word::awk"
+
+
+def test_wordを別に書けばそれが重複判定のキーになる():
+    """表面が文でも、同じ語の二重登録は防ぎたいときがある。"""
+    entry = load_text('[{"word": "awk", "front": "awk とは？", "back": "パターン走査"}]').entries[0]
+    assert (entry.front, entry.tag) == ("awk とは？", "word::awk")
+
+
 # --------------------------------------------------------------------------- 入力の不備
 
 
@@ -167,7 +210,7 @@ def test_裏面になるものが何も無ければその行だけ落ちる():
 def test_単語が空なら落ちる():
     loaded = load_text('[{"sentence": "try anyway"}]')
     assert not loaded.entries
-    assert "word が空です" in levels(loaded, "error")[0]
+    assert "word（語）か front（表）" in levels(loaded, "error")[0]
 
 
 def test_エントリがオブジェクトでなければその行だけ落ちる():
@@ -277,6 +320,27 @@ def test_ファイル内の重複も飛ばす():
     kept, issues = dedupe(loaded.entries, set())
     assert len(kept) == 1
     assert "ファイル内の [1]" in issues[0].message
+
+
+def test_表面がぶつかるカードだけ落として残りは通す():
+    """空欄化が効きすぎて表面が潰れても、**その分だけ**落とす（ファイルごと書けなくしない）。"""
+    loaded = load_text(
+        '[{"word": "awk", "sentence": "/usr/bin/awk"},'
+        ' {"word": "sed", "sentence": "/usr/bin/sed"},'
+        ' {"word": "冪等性", "meaning": "同じ操作を何度実行しても結果が変わらない性質"}]'
+    )
+    assert [e.front for e in loaded.entries[:2]] == ["/usr/bin/____", "/usr/bin/____"]
+    kept, issues = drop_front_clashes(loaded.entries, {})
+    assert [e.word for e in kept] == ["awk", "冪等性"]
+    assert issues[0].level == "skip"
+    assert "表面が [1] awk と同じ" in issues[0].message
+
+
+def test_既にあるカードと表面がぶつかっても飛ばすだけ():
+    loaded = load_text('[{"word": "awk", "sentence": "/usr/bin/awk"}, {"word": "冪等性", "meaning": "…"}]')
+    kept, issues = drop_front_clashes(loaded.entries, {"/usr/bin/____": "cards/2026-08-01.md:3"})
+    assert [e.word for e in kept] == ["冪等性"]
+    assert "cards/2026-08-01.md:3" in issues[0].message
 
 
 # --------------------------------------------------------------------------- Markdown 出力
