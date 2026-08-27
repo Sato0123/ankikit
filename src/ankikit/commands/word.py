@@ -4,8 +4,8 @@
 
 やることは 4 つ。**どれかで転んでも、通るものは通す**（重複 1 件で全部止まらない）。
 
-    1. JSON を検証して例文を空欄化   （壊れた行だけ落として理由を出す。例文が無ければ問答カード）
-    2. 単語をキーに重複を除外         （デッキに既にある語 / ファイル内の重複）
+    1. JSON を検証して表裏を組み立てる（壊れた行だけ落として理由を出す。`front`/`back` ならそのまま）
+    2. 重複を除外                     （単語が同じ / 表面が同じ）
     3. decks/<slug>/cards/YYYY-MM-DD.md に追記してコミット（**デッキが無ければ作る**）
     4. **今書いた分だけ** Anki へ push
 
@@ -68,7 +68,8 @@ def run(args: argparse.Namespace) -> int:
         return 2
 
     entries, dup_issues = vocab.dedupe(loaded.entries, _known_words(cards))
-    issues = [*loaded.issues, *dup_issues]
+    entries, clash_issues = vocab.drop_front_clashes(entries, _known_fronts(cards))
+    issues = [*loaded.issues, *dup_issues, *clash_issues]
     _report_issues(issues)
 
     broken = sum(1 for i in issues if i.level == "error")
@@ -176,6 +177,11 @@ def _known_words(cards: list[Card]) -> set[str]:
         for tag in card.tags
         if tag.startswith(WORD_TAG_PREFIX) and tag[len(WORD_TAG_PREFIX) :]
     }
+
+
+def _known_fronts(cards: list[Card]) -> dict[str, str]:
+    """デッキに既にある表面 → その在り処。表面がぶつかる分を落とすのに使う。"""
+    return {card.front.strip(): card.location() for card in cards}
 
 
 def _card_file(deck: Deck, date: str | None) -> Path:

@@ -103,6 +103,35 @@ def test_pushするのは今書いた分だけ(repo, monkeypatch):
     assert [c.front for c in sent[0]] == ["冪等性 とは？"]
 
 
+def test_表裏で書けばそのままカードになる(repo):
+    """`type` の出力のような「語 → その中身」は front/back で入れる。"""
+    src = repo / "commands.json"
+    src.write_text(
+        '[{"front": "awk", "back": "/usr/bin/awk"}, {"front": "sed", "back": "/usr/bin/sed"}]',
+        encoding="utf-8",
+    )
+    assert word.run(parse(["word", str(src), "--deck", "shell", "--no-push"])) == 0
+    written = next((repo / "decks" / "shell" / "cards").glob("*.md")).read_text(encoding="utf-8")
+    assert "## awk\nA: /usr/bin/awk" in written
+    assert "____" not in written
+
+
+def test_表面がぶつかっても残りは書き込む(repo, capsys):
+    """例文に説明を入れて表面が潰れた行だけ落とす。**ファイルごと書けなくならない。**"""
+    src = repo / "terms.json"
+    src.write_text(
+        '[{"word": "awk", "sentence": "/usr/bin/awk"},'
+        ' {"word": "sed", "sentence": "/usr/bin/sed"},'
+        ' {"word": "冪等性", "meaning": "何度やっても同じ"}]',
+        encoding="utf-8",
+    )
+    assert word.run(parse(["word", str(src), "--deck", "sre", "--no-push"])) == 1
+    written = next((repo / "decks" / "sre" / "cards").glob("*.md")).read_text(encoding="utf-8")
+    assert "冪等性 とは？" in written
+    assert written.count("## /usr/bin/____") == 1
+    assert "表面が [1] awk と同じ" in capsys.readouterr().out
+
+
 # --------------------------------------------------------------------- サブデッキ
 
 
